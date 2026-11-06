@@ -1,0 +1,144 @@
+<!-- title: Narada docs: install, use, and how it works -->
+<!-- description: How to install and use Narada, and exactly how it connects your browsers peer-to-peer and keeps your data encrypted. -->
+<!-- page: docs -->
+<div class="doc">
+  <aside class="toc panel" aria-label="On this page">
+    <h2 class="caption">Contents</h2>
+    <ol>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#quick-start">Quick start</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#permissions">Permissions</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#build">Build from source</a></li>
+    </ol>
+  </aside>
+
+  <article class="prose panel">
+    <h2 id="install">Install</h2>
+    <p>Narada works in every Chromium-based browser (Chrome, Edge, Brave, Opera, Vivaldi, Arc, version 110+) and every
+      Firefox-based browser (Firefox, ESR, LibreWolf, Waterfox, Floorp, Zen, version 115+). Safari isn't supported.</p>
+    <p class="caution">Store listings on the Chrome Web Store and Firefox Add-ons are coming. Until then, install from
+      <a href="https://github.com/dmdhrumilmistry/narada/releases">GitHub Releases</a>.</p>
+    <h3>Chromium browsers</h3>
+    <ol>
+      <li>Download <code>narada-chromium.zip</code> and unzip it.</li>
+      <li>Open <code>chrome://extensions</code> (or <code>edge://extensions</code>, <code>brave://extensions</code>…).</li>
+      <li>Turn on <strong>Developer mode</strong>, click <strong>Load unpacked</strong> and choose the unzipped folder.</li>
+    </ol>
+    <h3>Firefox browsers</h3>
+    <ol>
+      <li>Download <code>narada-firefox.zip</code>.</li>
+      <li>Open <code>about:debugging#/runtime/this-firefox</code> → <strong>Load Temporary Add-on…</strong> and pick the zip.
+        Temporary add-ons are removed when Firefox restarts; the store version installs permanently.</li>
+    </ol>
+
+    <h2 id="quick-start">Quick start</h2>
+    <p>The popup has four tabs: <strong>Bhejo</strong> (send), <strong>Lokas</strong> (devices), <strong>Sandesh</strong> (inbox) and <strong>Yantra</strong> (settings).</p>
+    <ol>
+      <li><strong>Pair:</strong> on browser A open <em>Lokas → Show a code</em>. On browser B open <em>Lokas → Enter a code</em>,
+        paste it and press <em>Join</em>. Both show six digits. If they match, press <em>Yes, they match</em> on each.
+        <strong>BANDHAN!</strong> You only do this once per pair of browsers.</li>
+      <li><strong>Send:</strong> in <em>Bhejo</em>, pick the device, tick the tabs, and press the big button.
+        To stay logged in on the other side, open <em>Keep me signed in</em> and switch on cookies and/or site storage.</li>
+      <li><strong>Approve:</strong> the other browser shows a notification. <em>Sandesh</em> lists the tabs and exactly
+        which sites you'd be signed in to. Press <em>Accept</em> to open them, or <em>Decline</em>. Requests expire after 5 minutes.</li>
+    </ol>
+    <p>Bonus: in <em>Lokas</em>, <em>Show tabs</em> lists what's open on a connected device, so you can open any of those tabs here.</p>
+    <div class="shots">
+      <img src="screenshots/devices-light.png" alt="Lokas: a connected device and its open tabs" width="400" height="590">
+      <img src="screenshots/send-dark.png" alt="Bhejo in dark mode" width="400" height="590">
+    </div>
+
+    <h2 id="how">How it works</h2>
+    <p>Narada has three moving parts: pairing, finding each other, and a direct encrypted connection.</p>
+    <h3>1. Pairing</h3>
+    <p>The one-time code holds a random 256-bit secret. It works once and expires after 10 minutes. Each browser has its
+      own identity key (ECDSA P-256), created on first run. That key can't be exported, even by Narada. During pairing,
+      the browsers exchange public keys and sign a shared transcript. The six digits you compare are derived from that
+      transcript, so a matching number proves nobody swapped keys in between. Each browser then <em>pins</em> the
+      other's key and saves a shared pair secret.</p>
+    <h3>2. Finding each other</h3>
+    <p>Browsers on different networks need a way to say "I'm here". Narada uses free, public
+      <a href="https://nostr.com">Nostr</a> relays as a noticeboard. Each pair derives a meeting spot (a random-looking tag)
+      and an encryption key from its pair secret, and both rotate every day. Every handshake message is encrypted,
+      timestamped, and signed with a throwaway key. Relays can't read it or link it to you over time, and they never
+      store it, because these are "ephemeral" events.</p>
+    <h3>3. The direct connection</h3>
+    <p>The browsers set up a WebRTC data channel. Google's public STUN servers tell each browser its public address, and
+      after that the data flows <strong>directly</strong> between them. There's deliberately <strong>no TURN relay</strong>.
+      Once connected, Narada closes its relay connections, so no server is involved at all.</p>
+    <p>On top of WebRTC's built-in DTLS encryption, Narada runs its own handshake:</p>
+    <ul>
+      <li>fresh ECDH keys for each connection, which gives forward secrecy;</li>
+      <li>signatures checked against the pinned keys;</li>
+      <li>everything bound to this connection's DTLS fingerprints;</li>
+      <li>AES-256-GCM frames with strict sequence numbers, so anything replayed, reordered or tampered with drops the connection.</li>
+    </ul>
+
+    <h2 id="security">Security at a glance</h2>
+    <table>
+      <thead><tr><th>Threat</th><th>What Narada does</th></tr></thead>
+      <tbody>
+        <tr><td>Relay operators or network snoops</td><td>The handshake is encrypted and topics rotate daily. Throwaway signing keys are used. Your tabs and cookies never touch a relay.</td></tr>
+        <tr><td>A leaked pairing code</td><td>The code is single use and expires in 10 minutes. Comparing the six digits catches anyone who used it first.</td></tr>
+        <tr><td>Someone in the middle</td><td>Pinned device keys, mutual signatures, and a handshake bound to the WebRTC (DTLS) fingerprints.</td></tr>
+        <tr><td>Stolen session keys</td><td>Fresh ECDH keys for every connection, with separate keys for each direction.</td></tr>
+        <tr><td>Malicious or buggy peer</td><td>Strict input checks: only http(s) links; cookies must belong to the tab's own site; storage must match its origin; size limits apply.</td></tr>
+        <tr><td>Silent sign-in import</td><td>Every transfer needs your Accept. There's no way for a device to <em>request</em> your cookies, so they only travel when you send them.</td></tr>
+        <tr><td>Keys copied off disk</td><td>Keys are non-extractable WebCrypto keys. Received cookies are never stored by Narada itself.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="permissions">Permissions</h2>
+    <table>
+      <thead><tr><th>Permission</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>tabs</code></td><td>List your tabs so you can pick what to send, and open the tabs you receive.</td></tr>
+        <tr><td><code>scripting</code></td><td>Read or restore a tab's site storage, only when you ask.</td></tr>
+        <tr><td><code>notifications</code></td><td>Tell you that tabs are waiting for approval.</td></tr>
+        <tr><td><code>offscreen</code> (Chromium)</td><td>Run the WebRTC connection in the background.</td></tr>
+        <tr><td><code>cookies</code> + all sites <em>(optional)</em></td><td>Requested only the first time you send or accept sign-in data.</td></tr>
+      </tbody>
+    </table>
+    <p>Private and incognito windows are never touched.</p>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+    <h3>"Offline" or "Last try: no answer"</h3>
+    <p>Both browsers need to be running with Narada enabled. Press <em>Connect</em> on the device in <em>Lokas</em>.
+      Without a TURN relay, some network pairs can't connect directly, such as strict corporate firewalls or two
+      symmetric NATs. Trying another network, or the same Wi-Fi, usually fixes it.</p>
+    <h3>"WebRTC is turned off in this browser"</h3>
+    <p>LibreWolf and some hardened setups disable WebRTC. In <code>about:config</code>, set
+      <code>media.peerconnection.enabled</code> to <code>true</code>. In Brave, set <em>Settings → Privacy → WebRTC IP handling policy</em>
+      to anything other than "Disable non-proxied UDP".</p>
+    <h3>The popup closed when I ticked "Include cookies" (Firefox)</h3>
+    <p>Firefox closes popups while it shows a permission prompt. Allow it, then reopen Narada and tick the box again.</p>
+    <h3>Some cookies "couldn't be set"</h3>
+    <p>Browsers reject some cookies, for example cross-site cookies in strict tracking-protection modes. The tab still opens,
+      but you may need to sign in on that site.</p>
+
+    <h2 id="faq">FAQ</h2>
+    <h3>Is there really no server?</h3>
+    <p>There's no Narada server. Public Nostr relays (which you can change in <em>Yantra</em>) carry only the encrypted
+      handshake, and Google STUN only reports your public address. After that, it's browser to browser.</p>
+    <h3>Does it sync automatically?</h3>
+    <p>No. Narada only sends what you pick, when you press Send. That keeps you in control, especially for sign-in data.</p>
+    <h3>Is sending cookies safe?</h3>
+    <p>Cookies are your sign-in, so only send them to your own devices. They're end-to-end encrypted, go directly to
+      the device you paired, and are applied only after you accept on that device.</p>
+    <h3>Where does the name come from?</h3>
+    <p>Narada Muni, the sage of the Bhagavata Purana, travels between all the worlds carrying messages: "Narayan Narayan!"</p>
+
+    <h2 id="build">Build from source</h2>
+    <pre><code>git clone https://github.com/dmdhrumilmistry/narada
+cd narada
+npm ci
+npm run build     # → dist/chromium and dist/firefox
+npm test          # unit tests</code></pre>
+    <p>The build is reproducible: release zips match what you build from the tagged source.
+      The full design is in <a href="https://github.com/dmdhrumilmistry/narada/blob/main/docs/PLAN.md">docs/PLAN.md</a>.</p>
+  </article>
+</div>

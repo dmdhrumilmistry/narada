@@ -40,4 +40,4 @@ user action), **Web history** (tab URLs the user chooses to send) and **Website 
 
 The data goes only to the user's own paired devices, end-to-end encrypted.
 
-**Privacy policy URL:** `https://github.com/dmdhrumilmistry/narada/blob/main/PRIVACY.md`
+**Privacy policy URL:** `https://dmdhrumilmistry.github.io/narada/privacy.html`

@@ -13,7 +13,8 @@
     "package": "npm run build && cd dist/chromium && zip -qr ../narada-chromium.zip . && cd ../firefox && zip -qr ../narada-firefox.zip .",
     "e2e:prepare": "npm run build && node test/e2e/prepare.mjs",
     "e2e:chromium": "node test/e2e/chromium-to-chromium.cjs",
-    "e2e:firefox": "node test/e2e/chromium-to-firefox.cjs"
+    "e2e:firefox": "node test/e2e/chromium-to-firefox.cjs",
+    "site": "node scripts/build-site.mjs"
   },
   "repository": {
     "type": "git",
@@ -28,6 +29,7 @@
     "@fontsource/bangers": "^5.3.0",
     "@fontsource/comic-neue": "^5.3.0",
     "esbuild": "^0.28.2",
+    "marked": "^18.1.3",
     "playwright": "1.63.0",
     "selenium-webdriver": "^4.0.0"
   },

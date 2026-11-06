@@ -1,0 +1,152 @@
+<!-- title: Narada: send tabs between your browsers, peer-to-peer -->
+<!-- description: Narada sends selected tabs, and optionally your sign-in, between your own Chrome, Firefox, Edge and Brave browsers. End-to-end encrypted, peer-to-peer WebRTC, no central server. -->
+<!-- page: index -->
+<div class="hero">
+  <div>
+    <p class="bubble">Narayan Narayan! Your tabs travel across every loka.</p>
+    <h1>Send tabs between your browsers. No server in the middle.</h1>
+    <p class="lead">
+      Narada moves the tabs you pick, and if you choose, your sign-in, from one browser to another:
+      Chrome to Firefox, Edge to Brave, laptop to desktop. It's peer-to-peer and end-to-end encrypted,
+      it needs no account, and it collects nothing.
+    </p>
+    <div class="ctas">
+      <a class="btn" href="https://github.com/dmdhrumilmistry/narada/releases">Get Narada</a>
+      <a class="btn alt" href="docs.html">How it works</a>
+    </div>
+  </div>
+  <div class="hero-art">
+    <span class="burst" aria-hidden="true">WHOOSH!</span>
+    <img class="shot" src="screenshots/send-light.png" alt="The Narada popup: choose a device, tick tabs, and press Send." width="400" height="590">
+  </div>
+</div>
+
+<section aria-labelledby="strip-h">
+  <h2 id="strip-h" class="caption">How it works, in four panels</h2>
+  <div class="strip">
+    <figure>
+      <div class="num">1 · Pair once</div>
+      <svg viewBox="0 0 260 170" role="img" aria-label="One browser shows a one-time code, the other enters it, and both show the same six digits.">
+        <path class="k f-none dash" d="M70 62 Q130 18 190 62"/>
+        <path class="k f-none" d="M180 50 L192 63 L176 66"/>
+        <text class="t" x="130" y="30" font-size="14" text-anchor="middle">ONE-TIME CODE</text>
+        <g transform="translate(14,70)">
+          <rect class="k f-panel" width="90" height="72" rx="6"/><line class="k" x1="0" y1="15" x2="90" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+          <text class="t" x="45" y="38" font-size="15" text-anchor="middle">NRD1-…</text>
+          <text class="t red" x="45" y="62" font-size="17" text-anchor="middle">473 538</text>
+        </g>
+        <g transform="translate(156,70)">
+          <rect class="k f-panel" width="90" height="72" rx="6"/><line class="k" x1="0" y1="15" x2="90" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+          <rect class="k k2 f-paper" x="10" y="24" width="70" height="18" rx="4"/>
+          <text class="t" x="45" y="38" font-size="13" text-anchor="middle">NRD1-…</text>
+          <text class="t red" x="45" y="62" font-size="17" text-anchor="middle">473 538</text>
+        </g>
+        <text class="t" x="130" y="164" font-size="13" text-anchor="middle">SAME NUMBERS? PAIRED!</text>
+      </svg>
+      <figcaption>Show a code on one browser and enter it on the other. Both show six digits; if they match, the devices trust each other's keys from then on.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="num">2 · Find each other</div>
+      <svg viewBox="0 0 260 170" role="img" aria-label="Both browsers send a short encrypted hello through public Nostr relays.">
+        <path class="k f-panel" d="M82 62 a18 18 0 0 1 8-32 a24 24 0 0 1 42-12 a22 22 0 0 1 40 10 a17 17 0 0 1 6 34 Z"/>
+        <text class="t" x="130" y="50" font-size="14" text-anchor="middle">NOSTR RELAYS</text>
+        <path class="k f-none dash" d="M60 100 L100 64"/>
+        <path class="k f-none dash" d="M200 100 L160 64"/>
+        <g transform="translate(80,82)"><rect class="k k2 f-tur" x="-8" y="-2" width="16" height="12" rx="2"/><path class="k k2 f-none" d="M-4.5 -2 v-4 a4.5 4.5 0 0 1 9 0 v4"/></g>
+        <g transform="translate(180,82)"><rect class="k k2 f-tur" x="-8" y="-2" width="16" height="12" rx="2"/><path class="k k2 f-none" d="M-4.5 -2 v-4 a4.5 4.5 0 0 1 9 0 v4"/></g>
+        <g transform="translate(14,100)">
+          <rect class="k f-panel" width="90" height="58" rx="6"/><line class="k" x1="0" y1="15" x2="90" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+          <text class="t" x="45" y="44" font-size="15" text-anchor="middle">HELLO?</text>
+        </g>
+        <g transform="translate(156,100)">
+          <rect class="k f-panel" width="90" height="58" rx="6"/><line class="k" x1="0" y1="15" x2="90" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+          <text class="t" x="45" y="44" font-size="15" text-anchor="middle">HERE!</text>
+        </g>
+      </svg>
+      <figcaption>To find each other, the browsers swap a short <strong>encrypted</strong> handshake through free public Nostr relays. Relays see only scrambled bytes and throwaway keys.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="num">3 · Connect directly</div>
+      <svg viewBox="0 0 260 170" role="img" aria-label="The browsers connect directly over WebRTC while the relays go quiet.">
+        <g opacity=".35">
+          <path class="k f-panel" d="M92 44 a14 14 0 0 1 6-24 a18 18 0 0 1 32-9 a17 17 0 0 1 30 8 a13 13 0 0 1 4 25 Z"/>
+          <text class="t" x="130" y="38" font-size="13" text-anchor="middle">zzz…</text>
+        </g>
+        <g transform="translate(14,66)">
+          <rect class="k f-panel" width="86" height="70" rx="6"/><line class="k" x1="0" y1="15" x2="86" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+        </g>
+        <g transform="translate(160,66)">
+          <rect class="k f-panel" width="86" height="70" rx="6"/><line class="k" x1="0" y1="15" x2="86" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+        </g>
+        <polygon class="k f-tur" points="100,96 128,86 124,100 160,92 132,112 136,98 100,106"/>
+        <text class="t" x="57" y="110" font-size="14" text-anchor="middle">YOU</text>
+        <text class="t" x="203" y="110" font-size="14" text-anchor="middle">YOU</text>
+        <text class="t" x="130" y="160" font-size="14" text-anchor="middle">DIRECT · ENCRYPTED · WEBRTC</text>
+      </svg>
+      <figcaption>Then they connect <strong>directly</strong> over WebRTC, using Google STUN only to discover their addresses. The relays close, and no server sits in between.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="num">4 · Send &amp; approve</div>
+      <svg viewBox="0 0 260 170" role="img" aria-label="A tab flies from one browser to the other, which asks you to accept it.">
+        <polygon class="k f-ver" points="52,6 60,22 76,12 72,30 92,34 76,44 86,60 66,54 60,72 50,58 34,66 36,48 18,40 34,32 26,16 44,22"/>
+        <text class="t-w" x="55" y="44" font-size="13" text-anchor="middle">WHOOSH!</text>
+        <g transform="translate(112,40) rotate(-8)">
+          <rect class="k f-tur" width="58" height="34" rx="5"/>
+          <text class="t dark" x="29" y="22" font-size="13" text-anchor="middle">TAB + 🔐</text>
+        </g>
+        <path class="k f-none dash" d="M70 112 Q120 96 154 104"/>
+        <g transform="translate(14,90)">
+          <rect class="k f-panel" width="80" height="64" rx="6"/><line class="k" x1="0" y1="15" x2="80" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+        </g>
+        <g transform="translate(160,78)">
+          <rect class="k f-panel" width="86" height="76" rx="6"/><line class="k" x1="0" y1="15" x2="86" y2="15"/>
+          <circle class="f-ver" cx="9" cy="7.5" r="3"/><circle class="f-tur" cx="18" cy="7.5" r="3"/>
+          <text class="t" x="43" y="38" font-size="15" text-anchor="middle">ACCEPT?</text>
+          <rect class="k k2 f-tur" x="14" y="46" width="58" height="20" rx="4"/>
+          <text class="t dark" x="43" y="61" font-size="13" text-anchor="middle">YES ✓</text>
+        </g>
+      </svg>
+      <figcaption>Tick tabs and press Send. The other browser shows what arrived, and which sites you'd be signed in to. <strong>Nothing opens until you accept.</strong></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section aria-labelledby="why-h">
+  <h2 id="why-h" class="caption">Why Narada</h2>
+  <div class="grid">
+    <div class="card"><div class="icon" aria-hidden="true">🕊️</div><h3>No middleman</h3><p>There are no Narada servers and no accounts. After a brief handshake over public relays, your browsers talk directly.</p></div>
+    <div class="card"><div class="icon" aria-hidden="true">🔐</div><h3>Locked down</h3><p>It's end-to-end encrypted, with pinned device keys, forward secrecy and replay protection, layered on WebRTC's own encryption.</p></div>
+    <div class="card"><div class="icon" aria-hidden="true">✋</div><h3>You approve everything</h3><p>Every incoming transfer waits for your OK, and sign-in data only moves when the sender explicitly includes it.</p></div>
+    <div class="card"><div class="icon" aria-hidden="true">🍪</div><h3>Stay signed in</h3><p>Optionally carry cookies and site storage with a tab, so it opens logged in on the other browser.</p></div>
+    <div class="card"><div class="icon" aria-hidden="true">🌐</div><h3>Any combination</h3><p>Chrome, Edge, Brave, Opera, Vivaldi, Firefox, LibreWolf and more, in any pairing.</p></div>
+    <div class="card"><div class="icon" aria-hidden="true">🙈</div><h3>Collects nothing</h3><p>There's no analytics, telemetry or tracking. Read the <a href="privacy.html">privacy policy</a>.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="look-h">
+  <h2 id="look-h" class="caption">A peek inside</h2>
+  <div class="shots">
+    <img src="screenshots/send-light.png" alt="Bhejo: pick a device, tick tabs, one clear send button" width="400" height="590">
+    <img src="screenshots/pair-verify.png" alt="Pairing: check six digits match, dark theme" width="400" height="590">
+    <img src="screenshots/inbox-light.png" alt="Sandesh: approve incoming tabs" width="400" height="590">
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="get-h">
+  <h2 id="get-h">Get Narada</h2>
+  <p>
+    Store listings for the <strong>Chrome Web Store</strong> and <strong>Firefox Add-ons</strong> are on the way. Until then,
+    download the latest build from <a href="https://github.com/dmdhrumilmistry/narada/releases">GitHub Releases</a>
+    and follow the <a href="docs.html#install">install steps</a>.
+  </p>
+</section>

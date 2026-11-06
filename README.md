@@ -100,7 +100,7 @@ the corner and comments on what's happening.
 | Key theft from disk | Identity and pair keys are non-extractable WebCrypto keys stored in IndexedDB. Cookies are never persisted by the extension. |
 | XSS in extension UI | Strict CSP, bundled fonts and assets only, no remote code, no `innerHTML`. |
 
-Full design: [`docs/PLAN.md`](docs/PLAN.md).
+Full design: [`docs/PLAN.md`](docs/PLAN.md). Website and user docs: https://dmdhrumilmistry.github.io/narada/ (source in `site/`, deployed by `.github/workflows/pages.yml`).
 
 ### Known limitations
 * Without TURN, some network pairs (for example both behind symmetric NAT or strict
@@ -114,7 +114,7 @@ Releases are automated: run **Actions → Release** (pick patch/minor/major), or
 `vX.Y.Z` tag. A release tests the code, publishes a GitHub Release with
 provenance-attested zips, and submits to the **Chrome Web Store** and **Firefox Add-ons**.
 For one-time store setup, see [`docs/RELEASING.md`](docs/RELEASING.md).
-Privacy policy: [`PRIVACY.md`](PRIVACY.md).
+Privacy policy: [`PRIVACY.md`](PRIVACY.md), published at https://dmdhrumilmistry.github.io/narada/privacy.html.
 
 ## Tests
 

@@ -33,6 +33,8 @@ jobs:
         run: npx --yes web-ext@10.8.0 lint --source-dir dist/firefox
       - name: Package
         run: npm run package
+      - name: Build website
+        run: npm run site
       - uses: actions/upload-artifact@v4
         with:
           name: narada-builds

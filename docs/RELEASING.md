@@ -46,7 +46,7 @@ publish waits for one click of approval.
    then upload `narada-chromium.zip` with **New item**.
 3. Fill in the **Store listing** and **Privacy practices** tabs using
    [`store/chrome-web-store.md`](../store/chrome-web-store.md). The privacy policy URL is
-   `https://github.com/dmdhrumilmistry/narada/blob/main/PRIVACY.md`. Submit it for review.
+   `https://dmdhrumilmistry.github.io/narada/privacy.html`. Submit it for review.
 4. Note the **extension ID** (from the item URL) and your **publisher ID** (from the
    dashboard URL / Account page).
 5. Create OAuth credentials for the Chrome Web Store API by following
