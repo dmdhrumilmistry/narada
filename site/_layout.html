@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>{{title}}</title>
+  <meta name="description" content="{{description}}">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{description}}">
+  <meta property="og:image" content="icons/icon128.png">
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-head">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="assets/narada.svg" alt="" width="56" height="56"><span class="logo">Narada</span></a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="./" {{current:index}}>Home</a>
+        <a href="docs.html" {{current:docs}}>Docs</a>
+        <a href="privacy.html" {{current:privacy}}>Privacy</a>
+        <a href="https://github.com/dmdhrumilmistry/narada">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main id="main" class="wrap">
+{{content}}
+  </main>
+  <footer class="site-foot">
+    <div class="wrap">
+      <span>Narada v{{version}} · MIT licensed · Narayan Narayan! 🪕</span>
+      <nav aria-label="Footer">
+        <a href="docs.html">Docs</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="https://github.com/dmdhrumilmistry/narada/releases">Releases</a>
+        <a href="https://github.com/dmdhrumilmistry/narada/issues">Report an issue</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

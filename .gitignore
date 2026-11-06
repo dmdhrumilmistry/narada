@@ -2,3 +2,4 @@ node_modules/
 dist/
 *.zip
 test/e2e/.build/
+dist-site/
