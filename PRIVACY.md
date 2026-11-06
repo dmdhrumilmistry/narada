@@ -48,4 +48,4 @@ in memory and expire after 5 minutes.
   send or accept sign-in data, to read cookies for the tabs you picked or set them on accept.
 
 ## Contact
-Questions or concerns: open an issue at https://github.com/dmdhrumilmistry/websync/issues.
+Questions or concerns: open an issue at https://github.com/dmdhrumilmistry/narada/issues.

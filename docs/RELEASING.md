@@ -5,7 +5,7 @@ Releases are automated by `.github/workflows/release.yml`. Each release:
 1. **Builds and tests** the tagged commit: unit tests, both builds, and `web-ext lint`.
 2. **Creates a GitHub Release** with `narada-chromium.zip`, `narada-firefox.zip`,
    `narada-source.zip` and `SHA256SUMS`, plus signed build-provenance attestations
-   (verify with `gh attestation verify narada-chromium.zip --repo dmdhrumilmistry/websync`).
+   (verify with `gh attestation verify narada-chromium.zip --repo dmdhrumilmistry/narada`).
 3. **Publishes to the Chrome Web Store**: it uploads the package and submits it for review.
 4. **Publishes to Firefox Add-ons (AMO)**: it submits a listed version with the source
    archive and reviewer build notes, and syncs the listing text from `store/amo-metadata.json`.
@@ -46,7 +46,7 @@ publish waits for one click of approval.
    then upload `narada-chromium.zip` with **New item**.
 3. Fill in the **Store listing** and **Privacy practices** tabs using
    [`store/chrome-web-store.md`](../store/chrome-web-store.md). The privacy policy URL is
-   `https://github.com/dmdhrumilmistry/websync/blob/main/PRIVACY.md`. Submit it for review.
+   `https://github.com/dmdhrumilmistry/narada/blob/main/PRIVACY.md`. Submit it for review.
 4. Note the **extension ID** (from the item URL) and your **publisher ID** (from the
    dashboard URL / Account page).
 5. Create OAuth credentials for the Chrome Web Store API by following

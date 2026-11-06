@@ -8,7 +8,7 @@ if (!/^v\d+\.\d+\.\d+$/.test(tag ?? '')) {
   process.exit(1);
 }
 const meta = JSON.parse(readFileSync(new URL('../store/amo-metadata.json', import.meta.url), 'utf8'));
-const repo = `${process.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${process.env.GITHUB_REPOSITORY ?? 'dmdhrumilmistry/websync'}`;
+const repo = `${process.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${process.env.GITHUB_REPOSITORY ?? 'dmdhrumilmistry/narada'}`;
 meta.version = {
   ...meta.version,
   release_notes: { 'en-US': `Release ${tag}. Full changelog: ${repo}/releases/tag/${tag}` },
