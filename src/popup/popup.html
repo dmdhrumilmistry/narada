@@ -54,6 +54,13 @@
           end-to-end encrypted, go directly between your devices, and need approval on the other side.
         </p>
       </details>
+
+      <details id="noteBox" class="carry">
+        <summary><span>📝 Send a note instead</span></summary>
+        <textarea id="noteText" rows="3" maxlength="16384" placeholder="Text, a link, an address, a code snippet…" aria-label="Note text"></textarea>
+        <button id="sendNote" class="btn primary small" type="button">Send note</button>
+        <small class="muted">Notes are end-to-end encrypted, never saved to disk, and vanish after 15 minutes.</small>
+      </details>
     </section>
 
     <!-- DEVICES -->
@@ -83,6 +90,13 @@
       <ul id="incoming" class="cards"></ul>
       <h2 class="caption">Sent recently</h2>
       <ul id="outgoing" class="history"></ul>
+      <div id="historyBlock">
+        <div class="caption-row">
+          <h2 class="caption">Received recently</h2>
+          <button id="clearHistory" class="text-btn" type="button">Clear</button>
+        </div>
+        <ul id="history" class="history"></ul>
+      </div>
     </section>
 
     <!-- SETTINGS -->
@@ -91,6 +105,7 @@
       <form id="settingsForm" class="form">
         <label>Device name<input id="setName" maxlength="64"></label>
         <label class="switch"><input type="checkbox" id="setShare"><span></span> Let my devices see my open tabs</label>
+        <label class="switch"><input type="checkbox" id="setHistory"><span></span> Keep a history of received tabs (titles &amp; links only)</label>
         <label>Signaling relays <small>wss:// only, one per line</small>
           <textarea id="setRelays" rows="5" spellcheck="false"></textarea>
         </label>

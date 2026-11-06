@@ -33,6 +33,8 @@ export const ICE_GATHER_TIMEOUT_MS = 4_000;
 export const HEARTBEAT_MS = 15_000;
 export const PEER_TIMEOUT_MS = 45_000;
 export const PENDING_TRANSFER_TTL_MS = 5 * 60 * 1000;
+export const NOTE_TTL_MS = 15 * 60 * 1000; // notes live in memory only
+export const HISTORY_MAX = 50; // received-tab history (URLs/titles only)
 
 export const LIMITS = {
   relayMessageBytes: 64 * 1024,
@@ -46,5 +48,6 @@ export const LIMITS = {
   storageItemsPerArea: 2000,
   storageValueLength: 1024 * 1024,
   deviceName: 64,
+  noteLength: 16 * 1024,
   relays: 12,
 };

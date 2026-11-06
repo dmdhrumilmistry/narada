@@ -207,10 +207,29 @@ for (const id of ['optCookies', 'optStorage']) {
   });
 }
 
+$('sendNote').addEventListener('click', guard(async () => {
+  const dev = state?.devices.find((d) => d.deviceId === target);
+  if (!dev) throw new Error('Choose an online device first.');
+  const text = $('noteText').value;
+  if (!text.trim()) throw new Error('Write a note first.');
+  $('sendNote').disabled = true;
+  try {
+    await call('sendNote', { deviceId: dev.deviceId, text });
+    $('noteText').value = '';
+    boom('WHOOSH!', 'blue');
+    toast(`Note sent to ${dev.name}.`);
+  } finally {
+    $('sendNote').disabled = false;
+  }
+}));
+
 function updateAction() {
   const btn = $('sendBtn');
   const n = selected.size;
   const dev = state?.devices.find((d) => d.deviceId === target);
+  const noteDev = state?.devices.find((d) => d.deviceId === target);
+  $('sendNote').textContent = noteDev ? `Send note to ${noteDev.name}` : 'Send note';
+  $('sendNote').disabled = !noteDev;
   $('selectAll').textContent = tabs.length && tabs.every((t) => selected.has(t.id)) ? 'Clear' : 'Select all';
   $('sensitiveWarn').hidden = !carryOn();
   $('carryState').textContent = carryOn() ? 'On' : 'Off';
@@ -365,12 +384,13 @@ function renderIncoming(s) {
   const n = s.incoming.length;
   $('incomingCount').hidden = !n;
   $('incomingCount').textContent = String(n);
-  if (!changed('incoming', [s.incoming.map((t) => [t.id, t.tabs]), Math.floor(Date.now() / 60000)])) return;
+  if (!changed('incoming', [s.incoming.map((t) => [t.id, t.tabs, t.text]), Math.floor(Date.now() / 60000)])) return;
   if (!n) {
-    $('incoming').replaceChildren(h('li', { class: 'empty' }, 'Nothing waiting. Tabs your devices send will show up here for you to approve.'));
+    $('incoming').replaceChildren(h('li', { class: 'empty' }, 'Nothing waiting. Tabs and notes your devices send show up here.'));
     return;
   }
   $('incoming').replaceChildren(...s.incoming.map((t) => {
+    if (t.kind === 'note') return noteCard(t);
     const domains = [...new Set(t.tabs.flatMap((x) => x.cookieDomains))];
     const storageSites = t.tabs.filter((x) => x.storageKeys).map((x) => host(x.url));
     const sensitive = domains.length || storageSites.length;
@@ -405,11 +425,50 @@ function renderIncoming(s) {
   }));
 }
 
+// A received note: shown as plain text (textContent), copied only on click.
+function noteCard(t) {
+  const link = safeHttpUrl(t.text.trim());
+  const dismiss = guard(async () => { await call('dismissNote', { id: t.id }); await refresh(); });
+  return h('li', { class: 'card' },
+    h('div', { class: 'card-head' }, h('strong', {}, `📝 Note from ${t.fromName}`), h('span', {}, ago(t.at))),
+    h('pre', { class: 'note-text' }, t.text),
+    h('div', { class: 'row' },
+      h('button', {
+        class: 'btn primary', type: 'button',
+        onclick: guard(async () => {
+          await navigator.clipboard.writeText(t.text);
+          boom('COPIED!', 'sky');
+          toast('Copied to your clipboard.');
+          await call('dismissNote', { id: t.id });
+          await refresh();
+        }),
+      }, 'Copy'),
+      link ? h('button', { class: 'btn', type: 'button', onclick: guard(async () => { await api.tabs.create({ url: link.href }); await call('dismissNote', { id: t.id }); }) }, 'Open link') : null,
+      h('button', { class: 'btn', type: 'button', onclick: dismiss }, 'Dismiss')),
+    h('small', { class: 'muted' }, 'Notes are never saved to disk and vanish after 15 minutes.'));
+}
+
+function renderHistory(s) {
+  if (!changed('history', [s.history, s.settings.keepHistory, Math.floor(Date.now() / 60000)])) return;
+  $('historyBlock').hidden = !s.settings.keepHistory;
+  const rows = s.history.flatMap((e) => e.tabs.map((t) => ({ ...t, at: e.at, fromName: e.fromName })));
+  $('history').replaceChildren(...(rows.length ? rows.slice(0, 50).map((t) => h('li', {},
+    h('span', { class: 'leaf-text grow' }, h('span', { class: 'leaf-title' }, t.title), h('span', { class: 'leaf-host' }, `${host(t.url)} · from ${t.fromName} · ${ago(t.at)}`)),
+    h('button', { class: 'btn small', type: 'button', onclick: guard(() => { if (safeHttpUrl(t.url)) return api.tabs.create({ url: t.url, active: false }); }) }, 'Open')))
+    : [h('li', { class: 'empty' }, 'Tabs you receive will be listed here.')]));
+}
+
+$('clearHistory').addEventListener('click', guard(async () => {
+  await call('clearHistory');
+  toast('History cleared.');
+  await refresh();
+}));
+
 function renderOutgoing(s) {
   if (!changed('outgoing', [s.outgoing, Math.floor(Date.now() / 60000)])) return;
-  const label = { sent: 'waiting', accepted: 'opened', rejected: 'declined', expired: 'expired', invalid: 'rejected' };
+  const label = { sent: 'waiting', accepted: 'opened', rejected: 'declined', expired: 'expired', invalid: 'rejected', delivered: 'delivered', read: 'read' };
   $('outgoing').replaceChildren(...(s.outgoing.length ? s.outgoing.map((o) => h('li', {},
-    h('span', {}, `${plural(o.count, 'tab')} → ${o.toName}`),
+    h('span', {}, o.kind === 'note' ? `📝 note → ${o.toName}` : `${plural(o.count, 'tab')} → ${o.toName}`),
     h('span', { class: o.status }, `${label[o.status] ?? o.status} · ${ago(o.at)}`))) : [h('li', { class: 'empty' }, 'Nothing sent yet.')]));
 }
 
@@ -419,6 +478,7 @@ function loadSettings(s) {
   settingsLoaded = true;
   $('setName').value = s.device.name;
   $('setShare').checked = s.settings.shareTabList;
+  $('setHistory').checked = s.settings.keepHistory;
   $('setRelays').value = s.settings.relays.join('\n');
 }
 
@@ -427,6 +487,7 @@ $('settingsForm').addEventListener('submit', guard(async (e) => {
   await call('setSettings', {
     name: $('setName').value,
     shareTabList: $('setShare').checked,
+    keepHistory: $('setHistory').checked,
     relays: $('setRelays').value.split('\n').map((x) => x.trim()).filter(Boolean),
   });
   settingsLoaded = false;
@@ -454,6 +515,7 @@ function refreshUi() {
   renderPairing(s.pairing);
   renderIncoming(s);
   renderOutgoing(s);
+  renderHistory(s);
   loadSettings(s);
   updateAction();
 }

@@ -135,6 +135,8 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
   The receiver **queues it for explicit user approval**. The one exception: plain tabs
   (no cookies or storage) from a device the user marked *trusted* auto-open, limited to
   5 per minute. Sign-in data is never applied automatically.
+* `note {id, text}`: up to 16 KB of plain text, held in memory only and expiring after 15 minutes.
+  It's acked `delivered` on arrival and `read` when copied or dismissed.
 * `transfer.ack {id, status}`.
 * There is deliberately **no "pull cookies" request**. Credentials only move
   when the sending user explicitly pushes them.

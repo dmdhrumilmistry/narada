@@ -137,6 +137,18 @@ main.panel {
 .remote { grid-column: 1 / -1; list-style: none; margin: 6px 0 0; padding: 0; max-height: 150px; overflow-y: auto; }
 .remote li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; border-top: 2px dotted var(--ink); }
 
+/* ---------- notes & history ---------- */
+#noteBox textarea { width: 100%; margin: 4px 0 6px; resize: vertical; }
+#noteBox .btn { margin-bottom: 4px; }
+#noteBox small { display: block; }
+.note-text {
+  margin: 0; padding: 8px 10px; max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  font: 13px/1.4 ui-monospace, monospace; background: var(--caution); border: 2px dashed var(--ink); border-radius: 7px;
+}
+#history li { align-items: center; }
+#history .grow { flex: 1; min-width: 0; }
+.history .delivered, .history .read { color: var(--ok) !important; }
+
 /* ---------- device options ---------- */
 .dev-opts { grid-column: 1 / -1; margin-top: 4px; font-size: 12.5px; }
 .dev-opts summary { cursor: pointer; font-weight: 700; color: var(--sky); width: max-content; }

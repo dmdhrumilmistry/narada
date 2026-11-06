@@ -1,8 +1,8 @@
 // Sync engine: identity, pairing, signaling, peer connections and the command API
 // used by the popup. Runs in the Chromium offscreen document or the Firefox
 // background page. Privileged browser APIs are reached through `ops`.
-import { DEFAULT_RELAYS, LIMITS, OFFER_TIMEOUT_MS, PENDING_TRANSFER_TTL_MS } from '../shared/constants.js';
-import { cleanName, safeRelayUrl, validateTabList, validateTransfer } from '../shared/validate.js';
+import { DEFAULT_RELAYS, HISTORY_MAX, LIMITS, NOTE_TTL_MS, OFFER_TIMEOUT_MS, PENDING_TRANSFER_TTL_MS } from '../shared/constants.js';
+import { cleanName, cleanNoteText, safeRelayUrl, validateNote, validateTabList, validateTransfer } from '../shared/validate.js';
 import { b64u, generateIdentity, hex, rand } from './crypto.js';
 import { newNostrKey, RelayPool } from './nostr.js';
 import { deriveTopic, PairingSession } from './pairing.js';
@@ -46,7 +46,8 @@ export class Engine {
       this.identity = { ...id, name: `${browserName()} ${id.deviceId.slice(0, 4).toUpperCase()}`, createdAt: Date.now() };
       await store.set('identity', this.identity);
     }
-    this.settings = { relays: DEFAULT_RELAYS, shareTabList: true, ...(await store.get('settings')) };
+    this.settings = { relays: DEFAULT_RELAYS, shareTabList: true, keepHistory: true, ...(await store.get('settings')) };
+    this.history = this.settings.keepHistory ? ((await store.get('history')) ?? []) : [];
     for (const p of await store.listPrefix('pair:')) this.pairs.set(p.deviceId, p);
     this.#newPool();
     for (const id of this.pairs.keys()) { this.#setStatus(id, 'offline'); this.#listen(id); }
@@ -231,11 +232,12 @@ export class Engine {
         if (pair.autoOpen && !sensitive && this.#autoOpenAllowed(deviceId)) {
           // Trusted device + plain tabs: open right away. Sign-in data never auto-applies.
           const r = await this.ops('applyTransfer', { tabs: t.tabs });
+          await this.#remember(deviceId, t.tabs);
           await link.send({ type: 'transfer.ack', id: t.id, status: 'accepted' });
           await this.ops('notify', { title: `Opened ${r.opened} tab(s) from ${pair.name}`, message: 'Auto-open is on for this device. Turn it off in Lokas.' });
           break;
         }
-        const entry = { ...t, from: deviceId, fromName: pair.name, at: Date.now() };
+        const entry = { ...t, kind: 'tabs', from: deviceId, fromName: pair.name, at: Date.now() };
         entry.timer = setTimeout(() => this.#resolveIncoming(t.id, 'expired'), PENDING_TRANSFER_TTL_MS);
         this.incoming.set(t.id, entry);
         await this.#badge();
@@ -243,6 +245,24 @@ export class Engine {
           title: `${entry.fromName} sent ${t.tabs.length} tab(s)`,
           message: sensitive ? 'Includes cookies/site data. Open Narada to review.' : 'Open Narada to review.',
         });
+        break;
+      }
+      case 'note': {
+        const n = validateNote(m);
+        const fromDevice = [...this.incoming.values()].filter((x) => x.from === deviceId).length;
+        if (!n || this.incoming.has(n.id) || fromDevice >= 10) {
+          await link.send({ type: 'transfer.ack', id: String(m.id).slice(0, 64), status: 'invalid' });
+          break;
+        }
+        const pair = this.pairs.get(deviceId);
+        // Notes stay in memory only and expire; never written to disk.
+        const entry = { ...n, kind: 'note', from: deviceId, fromName: pair.name, at: Date.now() };
+        entry.timer = setTimeout(() => this.#resolveIncoming(n.id, 'expired'), NOTE_TTL_MS);
+        this.incoming.set(n.id, entry);
+        await this.#badge();
+        await link.send({ type: 'transfer.ack', id: n.id, status: 'delivered' });
+        // No preview in the notification: notes may hold sensitive text.
+        await this.ops('notify', { title: `${pair.name} sent you a note`, message: 'Open Narada to read it.' });
         break;
       }
       case 'transfer.ack': {
@@ -253,6 +273,17 @@ export class Engine {
       default:
         break; // unknown types are ignored (forward compatibility)
     }
+  }
+
+  // Received-tab history: URLs and titles only (never cookies, storage or note text).
+  async #remember(fromId, tabs) {
+    if (!this.settings.keepHistory) return;
+    this.history.unshift({
+      at: Date.now(), fromName: this.pairs.get(fromId)?.name ?? 'removed device',
+      tabs: tabs.map((t) => ({ url: t.url, title: t.title })),
+    });
+    this.history.length = Math.min(this.history.length, HISTORY_MAX);
+    await store.set('history', this.history);
   }
 
   // At most 5 auto-opened transfers per device per minute; the rest wait for approval.
@@ -358,6 +389,33 @@ export class Engine {
         const r = await this.command('sendTransfer', { deviceId, tabs });
         return { ...r, name: this.pairs.get(deviceId).name };
       }
+      case 'sendNote': {
+        const text = cleanNoteText(a.text);
+        if (!text) throw new Error(`Write something to send (up to ${LIMITS.noteLength / 1024} KB).`);
+        const id = newId();
+        await this.#link(a.deviceId).send({ type: 'note', id, text });
+        this.outgoing.unshift({ id, kind: 'note', to: a.deviceId, count: 1, at: Date.now(), status: 'sent' });
+        this.outgoing.length = Math.min(this.outgoing.length, 20);
+        return { id };
+      }
+      case 'quickNote': {
+        const only = this.pairs.size === 1 ? [...this.pairs.keys()][0] : null;
+        const deviceId = a.deviceId ?? (this.pairs.has(this.settings.lastTarget) ? this.settings.lastTarget : only);
+        if (!deviceId || !this.pairs.has(deviceId)) throw new Error('Pick a device in Narada first (send once from the popup).');
+        await this.#waitConnected(deviceId);
+        const r = await this.command('sendNote', { deviceId, text: a.text });
+        return { ...r, name: this.pairs.get(deviceId).name };
+      }
+      case 'dismissNote': {
+        const n = this.incoming.get(a.id);
+        if (!n || n.kind !== 'note') throw new Error('Note expired');
+        await this.#resolveIncoming(a.id, 'read');
+        return true;
+      }
+      case 'clearHistory':
+        this.history = [];
+        await store.del('history');
+        return true;
       case 'setDeviceOptions': {
         const pair = this.pairs.get(a.deviceId);
         if (!pair) throw new Error('Unknown device');
@@ -370,7 +428,9 @@ export class Engine {
       case 'acceptTransfer': {
         const t = this.incoming.get(a.id);
         if (!t) throw new Error('Transfer expired');
+        if (t.kind !== 'tabs') throw new Error('Not a tab transfer');
         const result = await this.ops('applyTransfer', { tabs: t.tabs });
+        await this.#remember(t.from, t.tabs);
         await this.#resolveIncoming(a.id, 'accepted');
         return result;
       }
@@ -389,6 +449,10 @@ export class Engine {
       await store.set('identity', this.identity);
     }
     if (a.shareTabList !== undefined) this.settings.shareTabList = !!a.shareTabList;
+    if (a.keepHistory !== undefined) {
+      this.settings.keepHistory = !!a.keepHistory;
+      if (!this.settings.keepHistory) { this.history = []; await store.del('history'); }
+    }
     if (a.relays !== undefined) {
       const relays = [...new Set((a.relays || []).map(safeRelayUrl).filter(Boolean))].slice(0, LIMITS.relays);
       if (!relays.length) throw new Error('At least one wss:// relay is required');
@@ -414,8 +478,11 @@ export class Engine {
         issue: this.lastIssue.get(d.deviceId) ?? null,
       })),
       // Summaries only: cookie and storage values never leave the engine except to be applied.
-      incoming: [...this.incoming.values()].map((t) => ({
-        id: t.id, fromName: t.fromName, at: t.at,
+      history: this.history,
+      incoming: [...this.incoming.values()].map((t) => (t.kind === 'note' ? {
+        id: t.id, kind: 'note', fromName: t.fromName, at: t.at, text: t.text,
+      } : {
+        id: t.id, kind: 'tabs', fromName: t.fromName, at: t.at,
         tabs: t.tabs.map((x) => ({
           url: x.url, title: x.title,
           cookieCount: x.cookies?.length ?? 0,
