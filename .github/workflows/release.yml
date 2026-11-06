@@ -1,0 +1,203 @@
+name: Release
+
+# Two ways to release:
+#   1. Actions → Release → Run workflow → pick patch/minor/major.
+#      This bumps package.json, commits "Release vX.Y.Z" to main, tags it and publishes.
+#   2. Locally: `npm version patch && git push --follow-tags` (pushing the tag triggers this).
+#
+# Every release builds and tests the tagged commit and creates a GitHub Release with
+# both zips, the source archive, SHA256SUMS and build-provenance attestations. It then
+# publishes to the Chrome Web Store and Firefox Add-ons (AMO). Each store job is skipped
+# with a warning until its credentials are configured. See docs/RELEASING.md.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only used by the manual bump to push the release commit + tag
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bump version, commit and tag (manual run)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          if [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::Run the release workflow from main (got $GITHUB_REF_NAME)."; exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "$BUMP" -m "Release v%s"
+          git push origin HEAD:main --follow-tags
+      - name: Check tag matches package.json
+        id: v
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" != "$TAG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $VERSION"; exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG"
+
+  build:
+    name: Build & test
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+      - name: Lint Firefox add-on
+        run: npx --yes web-ext@10.8.0 lint --source-dir dist/firefox
+      - name: Source archive (required by AMO for bundled code)
+        run: git archive --format=zip --prefix=narada-source/ -o dist/narada-source.zip HEAD
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum narada-chromium.zip narada-firefox.zip narada-source.zip | tee SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          if-no-files-found: error
+          path: |
+            dist/narada-chromium.zip
+            dist/narada-firefox.zip
+            dist/narada-source.zip
+            dist/SHA256SUMS
+            dist/firefox/
+
+  github-release:
+    name: GitHub Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: dist
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/narada-*.zip
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Narada $TAG" \
+            dist/narada-chromium.zip dist/narada-firefox.zip dist/narada-source.zip dist/SHA256SUMS
+
+  chrome:
+    name: Chrome Web Store
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: dist
+      - name: Check credentials
+        id: creds
+        env:
+          EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: |
+          missing=""
+          for v in EXTENSION_ID PUBLISHER_ID CLIENT_ID CLIENT_SECRET REFRESH_TOKEN; do [ -n "${!v}" ] || missing="$missing $v"; done
+          if [ -n "$missing" ]; then
+            echo "::warning::Skipping Chrome Web Store publish; not configured:$missing (see docs/RELEASING.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload & submit for review
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: npx --yes chrome-webstore-upload-cli@4.0.2 --source dist/narada-chromium.zip
+
+  firefox:
+    name: Firefox Add-ons (AMO)
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    environment: firefox-addons
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+          sparse-checkout: |
+            store
+            scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: dist
+      - name: Check credentials
+        id: creds
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::warning::Skipping AMO publish; AMO_JWT_ISSUER / AMO_JWT_SECRET not configured (see docs/RELEASING.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Listing metadata
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: node scripts/amo-metadata.mjs "$TAG" > dist/amo-metadata.json
+      - name: Submit listed version (with source code)
+        if: steps.creds.outputs.ready == 'true'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          npx --yes web-ext@10.8.0 sign --channel listed --source-dir dist/firefox --artifacts-dir dist/signed \
+            --upload-source-code dist/narada-source.zip --amo-metadata dist/amo-metadata.json --approval-timeout 0
