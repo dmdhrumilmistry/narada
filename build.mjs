@@ -6,11 +6,10 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const watch = process.argv.includes('--watch');
 
 const CSP = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' wss:; img-src 'self' data:; style-src 'self'";
-// Bundled fonts (SIL Open Font License), so no remote font loading.
-// Yatra One: Devanagari-inspired display face; Mukta: clear Indian-designed UI sans.
+// Bundled comic fonts (SIL Open Font License), so no remote font loading.
 const FONTS = {
-  'yatra-one': ['yatra-one-latin-400-normal.woff2', 'yatra-one-devanagari-400-normal.woff2'],
-  mukta: ['mukta-latin-400-normal.woff2', 'mukta-latin-600-normal.woff2', 'mukta-latin-700-normal.woff2'],
+  bangers: ['bangers-latin-400-normal.woff2'],
+  'comic-neue': ['comic-neue-latin-400-normal.woff2', 'comic-neue-latin-700-normal.woff2'],
 };
 const icons = { 16: 'icons/icon16.png', 32: 'icons/icon32.png', 48: 'icons/icon48.png', 128: 'icons/icon128.png' };
 const common = {

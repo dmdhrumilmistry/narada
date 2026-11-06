@@ -8,9 +8,9 @@ tabs (and, if you choose, your logins) between your browsers. It does this
 **peer-to-peer**, with no central server in between.
 
 <p align="center">
-  <img src="docs/screenshots/send-light.png" alt="Send: pick a device string, tick tab leaves, one clear button" width="230">
+  <img src="docs/screenshots/send-light.png" alt="Bhejo: pick a device, tick tabs, one clear button" width="230">
   <img src="docs/screenshots/pair-verify.png" alt="Pairing: compare six digits, dark theme" width="230">
-  <img src="docs/screenshots/inbox-light.png" alt="Inbox: approve incoming tabs" width="230">
+  <img src="docs/screenshots/inbox-light.png" alt="Sandesh: approve incoming tabs" width="230">
 </p>
 
 * **Works in every Chromium and Firefox browser**, in any combination (Chrome ↔ Firefox,
@@ -23,7 +23,7 @@ tabs (and, if you choose, your logins) between your browsers. It does this
   ephemeral ECDH, AES-256-GCM and replay protection, on top of DTLS.
 * **Send only the tabs you pick**, optionally with their **cookies and site storage**,
   so you stay logged in. The receiving device must approve every transfer.
-* A **palm-leaf manuscript and veena-string UI**, unlike any other sync tool (see below).
+* A friendly **comic-book UI**, toned down so it stays easy to read (see below).
 
 ## Supported browsers
 
@@ -60,33 +60,28 @@ npm run package      # optional: dist/narada-chromium.zip + dist/narada-firefox.
 
 ## The design
 
-Narada's popup is a **tāḍapatra**, the palm-leaf manuscripts the Puranas were
-written on, strung on a **veena**:
+A **comic-book look, kept calm**: ink outlines, halftone paper, speech bubbles and
+quick sound-effect bursts (**WHOOSH!** when you send, **ZAP!** when a device
+connects, **BANDHAN!** when pairing completes, **SHABASH!** when you accept), sized
+so the popup stays easy to read. Narada himself (topknot, tilak, veena) sits in
+the corner and comments on what's happening.
 
-* **Devices are strings.** An online device's string is taut and gold, an offline
-  one hangs slack, and a connecting one shimmers. When you send, that string is
-  *plucked*.
-* **Tabs are palm leaves.** The leaf's binding hole is the checkbox.
-* **Type:** *Yatra One*, a Latin display face drawn with Devanagari calligraphy
-  in mind, is used only for the name and the pairing digits. *Mukta*, from an
-  Indian type foundry, is used for everything you read. The fonts are bundled and nothing loads remotely.
-* **Light** is parchment and indigo ink. **Dark** is the night sky between the lokas,
-  with brass accents. Animations respect `prefers-reduced-motion`.
-
-It's built to be quick to use: four sections in a bottom bar (Send, Devices, Inbox,
-Settings), and one sticky button that always says exactly what will happen
-("Send 3 tabs + sign-in to Pixel"). The popup opens straight to the Inbox when
-something is waiting, or to Devices when you haven't paired anything yet.
+* **Sections:** **Bhejo** (send), **Lokas** (devices), **Sandesh** (inbox), **Yantra** (settings).
+* **One clear button** always says exactly what will happen ("Send 3 tabs + sign-in to Pixel").
+* **Two-step pairing** with large digits to compare.
+* **Inbox** names exactly which sites you would be signed in to.
+* **Opens where you need it:** straight to Sandesh when something is waiting, or to Lokas when nothing is paired yet.
+* Fonts (Bangers, Comic Neue) are bundled. Light and dark themes are included, and `prefers-reduced-motion` is respected.
 
 ## Usage
 
-1. **Pair**: on device A, open *Devices* → *Show a code*. On device B, open
-   *Devices* → *Enter a code*, paste it and click *Join*. Both devices show six
+1. **Pair**: on device A, open *Lokas* → *Show a code*. On device B, open
+   *Lokas* → *Enter a code*, paste it and click *Join*. Both devices show six
    digits. Tap *Yes, they match* on each.
-2. **Send**: in *Send*, choose a device string, tick the tab leaves, and press the
+2. **Send**: in *Bhejo*, choose a device, tick the tabs, and press the
    button. To stay logged in on the other side, open *Keep me signed in* and turn on
    cookies and/or site storage. The first time, the browser asks for that permission.
-3. **Approve**: the receiver gets a notification. *Inbox* shows the tabs and exactly
+3. **Approve**: the receiver gets a notification. *Sandesh* shows the tabs and exactly
    which sites you would be signed in to. Nothing is applied until you tap
    *Accept & sign in* (or *Open tabs*). Requests expire after 5 minutes.
 
@@ -142,12 +137,12 @@ src/engine       crypto, IndexedDB store, Nostr pool, signaling, pairing,
                  secure channel, WebRTC peer, engine orchestration
 src/background   browser ops (tabs/cookies/storage) + per-browser entry points
 src/offscreen    Chromium engine host page (offscreen document or fallback window)
-src/popup        UI (palm-leaf & veena-string design)
-src/assets       Narada mark (SVG; icons are rendered from it by scripts/make-icons.mjs)
+src/popup        comic UI
+src/assets       Narada mascot (SVG; icons are rendered from it by scripts/make-icons.mjs)
 build.mjs        bundles with esbuild, copies fonts, writes per-browser manifests
 test/            unit tests; test/e2e real-browser tests
 ```
 
-Fonts: [Yatra One](https://github.com/google/fonts/tree/main/ofl/yatraone) and
-[Mukta](https://github.com/EkType/Mukta), both SIL Open Font License,
+Fonts: [Bangers](https://github.com/googlefonts/bangers) and
+[Comic Neue](https://github.com/crozynski/comicneue), both SIL Open Font License,
 bundled in `fonts/` with their licenses.

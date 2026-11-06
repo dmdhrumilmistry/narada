@@ -6,53 +6,62 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header class="top">
-    <img src="assets/narada.svg" alt="" class="mark" width="30" height="30">
-    <div class="brand">
-      <h1>Narada <span lang="sa" class="deva">नारद</span></h1>
-      <p id="deviceName" class="sub"></p>
+  <header class="masthead">
+    <img src="assets/narada.svg" alt="" class="mascot" width="54" height="54">
+    <div class="title-block">
+      <div class="title-row">
+        <h1>Narada</h1>
+        <span id="netStatus" class="chip"></span>
+      </div>
+      <p class="bubble" id="quip">Narayan Narayan! Your tabs travel across every loka.</p>
     </div>
-    <span id="netStatus" class="net" title=""></span>
   </header>
+  <p id="deviceName" class="this-device"></p>
 
-  <p id="webrtcWarn" class="notice danger" hidden>
+  <p id="webrtcWarn" class="caution top-warn" hidden>
     WebRTC is turned off in this browser, so Narada can't connect.
     In Firefox-based browsers, set <code>media.peerconnection.enabled</code> to <code>true</code> in about:config.
   </p>
 
-  <main>
+  <nav aria-label="Sections">
+    <button data-view="send" class="active" type="button"><b>Bhejo</b><small>send</small></button>
+    <button data-view="devices" type="button"><b>Lokas</b><small>devices</small></button>
+    <button data-view="incoming" type="button"><b>Sandesh</b><small>inbox</small><span id="incomingCount" class="pill" hidden></span></button>
+    <button data-view="settings" type="button"><b>Yantra</b><small>settings</small></button>
+  </nav>
+
+  <main class="panel">
     <!-- SEND -->
     <section id="view-send">
-      <div class="label-row"><h2>Send to</h2></div>
+      <h2 class="caption">1 · Send to</h2>
       <ul id="targets" class="strings" role="radiogroup" aria-label="Send to device"></ul>
 
-      <div class="label-row">
-        <h2>Tabs in this window</h2>
+      <div class="caption-row">
+        <h2 class="caption">2 · Pick tabs</h2>
         <button id="selectAll" class="text-btn" type="button">Select all</button>
       </div>
       <ul id="tabList" class="leaves" aria-label="Tabs"></ul>
 
       <details id="carry" class="carry">
         <summary>
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-          <span>Keep me signed in on the other device</span>
+          <span>🔐 Keep me signed in on the other device</span>
           <span id="carryState" class="carry-state">Off</span>
         </summary>
         <label class="switch"><input type="checkbox" id="optCookies"><span></span> Include cookies</label>
         <label class="switch"><input type="checkbox" id="optStorage"><span></span> Include site storage <small>(localStorage, sessionStorage)</small></label>
-        <p id="sensitiveWarn" class="notice" hidden>
-          Cookies and site storage are sign-in credentials, so send them only to your own devices. They're end-to-end
-          encrypted, go directly between your devices, and won't be used until you approve them on the other side.
+        <p id="sensitiveWarn" class="caution" hidden>
+          Careful! Cookies and site storage are sign-in credentials, so send them only to your own devices. They're
+          end-to-end encrypted, go directly between your devices, and need approval on the other side.
         </p>
       </details>
     </section>
 
     <!-- DEVICES -->
     <section id="view-devices" hidden>
-      <div class="label-row"><h2>Your devices</h2></div>
+      <h2 class="caption">Your lokas</h2>
       <ul id="devices" class="strings"></ul>
 
-      <div class="label-row"><h2>Add a device</h2></div>
+      <h2 class="caption">Pair a new device</h2>
       <div id="pairing"></div>
       <div id="pairControls" class="pair-choice">
         <button id="pairStart" class="choice" type="button">
@@ -70,14 +79,15 @@
 
     <!-- INBOX -->
     <section id="view-incoming" hidden>
-      <div class="label-row"><h2>Waiting for you</h2></div>
+      <h2 class="caption">Sandesh for you</h2>
       <ul id="incoming" class="cards"></ul>
-      <div class="label-row"><h2>Sent recently</h2></div>
+      <h2 class="caption">Sent recently</h2>
       <ul id="outgoing" class="history"></ul>
     </section>
 
     <!-- SETTINGS -->
     <section id="view-settings" hidden>
+      <h2 class="caption">Yantra</h2>
       <form id="settingsForm" class="form">
         <label>Device name<input id="setName" maxlength="64"></label>
         <label class="switch"><input type="checkbox" id="setShare"><span></span> Let my devices see my open tabs</label>
@@ -95,25 +105,12 @@
   </main>
 
   <footer>
+    <div id="toast" class="toast bubble" role="status" aria-live="polite" hidden></div>
     <div id="actionBar" class="action-bar">
-      <button id="sendBtn" class="btn primary wide" type="button" disabled>Choose tabs to send</button>
+      <button id="sendBtn" class="pow" type="button" disabled>Choose tabs to send</button>
     </div>
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <nav aria-label="Sections">
-      <button data-view="send" class="active" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 6l6 6-6 6"/></svg>Send
-      </button>
-      <button data-view="devices" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="7" r="3"/><path d="M8.2 14.8l7.6-5.6"/></svg>Devices
-      </button>
-      <button data-view="incoming" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l3-8h10l3 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg>Inbox<span id="incomingCount" class="badge" hidden></span>
-      </button>
-      <button data-view="settings" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings
-      </button>
-    </nav>
   </footer>
+  <div id="sfx" aria-hidden="true"></div>
   <script src="popup.js"></script>
 </body>
 </html>

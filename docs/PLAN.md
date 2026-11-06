@@ -150,13 +150,13 @@ If WebRTC is disabled (for example LibreWolf with `media.peerconnection.enabled=
 the engine detects it and the UI explains how to turn it back on.
 
 ### UI
-The popup is a palm-leaf manuscript (tāḍapatra) strung on a veena. Each device is
-a string: taut and gold when online, slack when offline, and plucked when you send.
-Tabs are leaves, and the binding hole is the checkbox. The fonts are Yatra One
-(display, used sparingly) and Mukta (UI text), both SIL OFL and bundled. There's a
-bottom navigation bar and a single sticky action button that spells out the action.
-The popup opens on the Inbox when something is waiting. Light and dark themes are
-included, and `prefers-reduced-motion` is respected.
+The popup has a toned-down comic-book look: ink outlines, halftone paper, speech
+bubbles, and small, quick sound-effect bursts, with a cartoon Narada mascot. The
+sections are Bhejo, Lokas, Sandesh and Yantra. A single sticky action button spells
+out the action, pairing takes two steps with large SAS digits, and the inbox lists
+which sites accepting would sign you in to. The fonts are Bangers and Comic Neue
+(SIL OFL, bundled). Light and dark themes are included, and `prefers-reduced-motion`
+is respected.
 
 ## 4. Security practices
 

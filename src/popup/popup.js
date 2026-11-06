@@ -44,7 +44,7 @@ let toastTimer;
 function toast(message, error = false) {
   const el = $('toast');
   el.textContent = message;
-  el.className = error ? 'toast error' : 'toast';
+  el.className = error ? 'toast bubble error' : 'toast bubble';
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, error ? 6000 : 3500);
@@ -54,6 +54,33 @@ const guard = (fn) => async (...a) => { try { await fn(...a); } catch (e) { toas
 const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
 const host = (url) => { try { return new URL(url).host; } catch { return ''; } };
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// Comic sound-effect burst (small and quick).
+const SFX_COLORS = { red: 'var(--vermilion)', blue: 'var(--peacock)', saffron: 'var(--saffron)', sky: 'var(--sky)' };
+function boom(text, color = 'red') {
+  const el = h('div', { class: 'boom' }, text);
+  el.style.setProperty('--boom', SFX_COLORS[color]);
+  $('sfx').replaceChildren(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+const QUIPS = [
+  'Narayan Narayan! Your tabs travel across every loka.',
+  'No middlemen. Just you, your devices and a little divine WebRTC.',
+  'End-to-end encrypted. Not even Indra can read along.',
+  'Cookies travel only when you say so. Narada never gossips… mostly.',
+];
+let quipIndex = 0;
+setInterval(() => { quipIndex = (quipIndex + 1) % QUIPS.length; }, 8000);
+function updateQuip(s) {
+  let text;
+  if (s.incoming.length) text = `Narayan Narayan! A sandesh has arrived from ${s.incoming[0].fromName}!`;
+  else if (s.pairing?.state === 'verify') text = 'Check that the numbers match on both devices.';
+  else if (!s.devices.length) text = 'Pair a second device to begin the yatra!';
+  else text = QUIPS[quipIndex];
+  if ($('quip').textContent !== text) $('quip').textContent = text;
+}
+const prevStatus = new Map();
 
 // Must start synchronously inside the click handler (Firefox requires a user gesture).
 const requestSensitive = () => api.permissions.request(SENSITIVE_PERMS);
@@ -92,12 +119,17 @@ function show(next) {
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === next));
   document.querySelectorAll('main section').forEach((s) => { s.hidden = s.id !== 'view-' + next; });
   $('actionBar').hidden = next !== 'send';
+  document.body.dataset.view = next;
 }
 document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
 
 // ---------- send: targets ----------
 function renderTargets(s) {
   const devices = s.devices.map((d) => ({ id: d.deviceId, name: d.name, status: d.status }));
+  for (const d of devices) {
+    if (prevStatus.has(d.id) && prevStatus.get(d.id) !== 'connected' && d.status === 'connected') boom('ZAP!', 'blue');
+    prevStatus.set(d.id, d.status);
+  }
   if (!changed('targets', [devices, target])) return;
   const list = $('targets');
   if (!devices.length) {
@@ -202,6 +234,7 @@ $('sendBtn').addEventListener('click', guard(async () => {
   try {
     const r = await call('sendTabs', { deviceId, tabIds: [...selected], cookies, storage });
     pluck(deviceId);
+    boom('WHOOSH!', 'blue');
     toast(`Sent ${plural(r.count, 'tab')} to ${name}. Waiting for them to accept.${r.warnings?.length ? ' ' + r.warnings.join('; ') : ''}`);
   } finally {
     updateAction();
@@ -285,7 +318,7 @@ function renderPairing(p) {
       h('p', {}, h('strong', {}, 'Step 2 of 2: '), `Does "${p.peerName}" show exactly these numbers?`),
       h('div', { class: 'sas', 'aria-label': p.sas }, digits.slice(0, 3).map((d) => h('b', {}, d)), h('i'), digits.slice(3).map((d) => h('b', {}, d))),
       h('div', { class: 'row' },
-        h('button', { class: 'btn primary', type: 'button', onclick: guard(async () => { await call('pairConfirm'); toast(`Paired with ${p.peerName}.`); await refresh(); }) }, 'Yes, they match'),
+        h('button', { class: 'btn primary', type: 'button', onclick: guard(async () => { await call('pairConfirm'); boom('BANDHAN!', 'saffron'); toast(`Paired with ${p.peerName}.`); await refresh(); }) }, 'Yes, they match'),
         h('button', { class: 'btn', type: 'button', onclick: guard(async () => { await call('pairCancel'); toast('Pairing cancelled. Nothing was saved.'); await refresh(); }) }, 'No')),
     ];
   } else {
@@ -331,6 +364,7 @@ function renderIncoming(s) {
               if (!(await perm)) throw new Error('Permission denied, so cookies and site data could not be imported.');
               e.target.disabled = true;
               const r = await call('acceptTransfer', { id: t.id });
+              boom('SHABASH!', 'saffron');
               toast(`Opened ${plural(r.opened, 'tab')}${r.cookiesSet ? `, signed in with ${plural(r.cookiesSet, 'cookie')}` : ''}.` +
                 (r.cookiesFailed ? ` ${r.cookiesFailed} couldn't be set.` : ''), !!r.cookiesFailed);
               await refresh();
@@ -378,10 +412,11 @@ function refreshUi() {
   $('deviceName').textContent = `This device: ${s.device.name}`;
   $('deviceId').textContent = s.device.id;
   $('webrtcWarn').hidden = s.webrtc !== false;
+  updateQuip(s);
   const net = $('netStatus');
-  if (online.length) { net.textContent = `${online.length} linked · direct`; net.className = 'net p2p'; net.title = 'Connected peer-to-peer. No server in between.'; }
-  else if (s.relays.total) { net.textContent = `Signaling ${s.relays.connected}/${s.relays.total}`; net.className = 'net live'; net.title = 'Looking for your devices via public relays (encrypted).'; }
-  else { net.textContent = 'Idle'; net.className = 'net'; net.title = ''; }
+  if (online.length) { net.textContent = `${online.length} linked · direct`; net.className = 'chip p2p'; net.title = 'Connected peer-to-peer. No server in between.'; }
+  else if (s.relays.total) { net.textContent = `Signaling ${s.relays.connected}/${s.relays.total}`; net.className = 'chip live'; net.title = 'Looking for your devices via public relays (encrypted).'; }
+  else { net.textContent = 'Resting'; net.className = 'chip'; net.title = ''; }
   renderTargets(s);
   renderDevices(s);
   renderPairing(s.pairing);
