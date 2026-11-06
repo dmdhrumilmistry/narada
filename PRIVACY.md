@@ -43,6 +43,7 @@ in memory and expire after 5 minutes.
 * `tabs`: list your tabs so you can pick which to send, and open received tabs.
 * `scripting`: read or restore site storage for a tab, only when you ask for it.
 * `notifications`: tell you when a device sends you tabs.
+* `contextMenus` / `menus`: add "Send to device with Narada" to the right-click menu.
 * `offscreen` (Chromium only): run the WebRTC connection in the background.
 * `cookies` and access to all sites: **optional**. Requested only the first time you
   send or accept sign-in data, to read cookies for the tabs you picked or set them on accept.

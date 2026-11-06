@@ -132,8 +132,9 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 * `tabs.list.req/res`: open tabs (title + URL only). Served only if the user
   has "Allow paired devices to see my open tabs" enabled.
 * `transfer {id, tabs[]}`: each tab is `{url, title, pinned, cookies?, storage?}`.
-  The receiver **queues it for explicit user approval**. Nothing is applied
-  automatically.
+  The receiver **queues it for explicit user approval**. The one exception: plain tabs
+  (no cookies or storage) from a device the user marked *trusted* auto-open, limited to
+  5 per minute. Sign-in data is never applied automatically.
 * `transfer.ack {id, status}`.
 * There is deliberately **no "pull cookies" request**. Credentials only move
   when the sending user explicitly pushes them.

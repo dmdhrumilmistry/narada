@@ -29,7 +29,11 @@ const manifests = {
     minimum_chrome_version: '116',
     background: { service_worker: 'background.js' },
     action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'notifications', 'scripting', 'offscreen'],
+    permissions: ['tabs', 'notifications', 'scripting', 'offscreen', 'contextMenus'],
+    commands: {
+      _execute_action: { suggested_key: { default: 'Alt+Shift+Y' }, description: 'Open Narada' },
+      'send-current-tab': { suggested_key: { default: 'Alt+Shift+S' }, description: 'Send the current tab to the last used device' },
+    },
     optional_permissions: ['cookies'],
     optional_host_permissions: ['<all_urls>'],
     content_security_policy: { extension_pages: CSP },
@@ -39,7 +43,11 @@ const manifests = {
     ...common,
     background: { scripts: ['background.js'], persistent: true },
     browser_action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'notifications', 'scripting'],
+    permissions: ['tabs', 'notifications', 'scripting', 'menus'],
+    commands: {
+      _execute_browser_action: { suggested_key: { default: 'Alt+Shift+Y' }, description: 'Open Narada' },
+      'send-current-tab': { suggested_key: { default: 'Alt+Shift+S' }, description: 'Send the current tab to the last used device' },
+    },
     optional_permissions: ['cookies', '<all_urls>'],
     content_security_policy: CSP,
     // Nothing is collected by or sent to the developer; relays only see encrypted handshakes.

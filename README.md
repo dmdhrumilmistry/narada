@@ -23,6 +23,10 @@ tabs (and, if you choose, your logins) between your browsers. It does this
   ephemeral ECDH, AES-256-GCM and replay protection, on top of DTLS.
 * **Send only the tabs you pick**, optionally with their **cookies and site storage**,
   so you stay logged in. The receiving device must approve every transfer.
+* **Quick send:** right-click any page or link → *Send to device*, or press `Alt+Shift+S`
+  to send the current tab to the device you used last.
+* **Trusted devices:** optionally auto-open plain tabs from a device you trust. Sign-in data
+  always waits for approval.
 * A friendly **comic-book UI**, toned down so it stays easy to read (see below).
 
 ## Supported browsers
@@ -95,7 +99,7 @@ the corner and comments on what's happening.
 | Compromised session key | Ephemeral ECDH per connection gives forward secrecy, and keys are separate per direction. |
 | Replay/reorder/tamper on channel | AES-GCM with strictly increasing 64-bit sequence numbers. Any failure closes the connection. |
 | Malicious/buggy peer payloads | Strict validation: http(s) URLs only, cookies must domain-match the tab, the storage origin must match (and is re-checked in-page), plus size and count limits. |
-| Silent credential import | Every incoming transfer needs explicit approval. There is no "pull cookies" request, so credentials only move when the sender pushes them. |
+| Silent credential import | Every transfer carrying cookies or site storage needs explicit approval, even from a trusted device. Only plain tabs can auto-open, and only from devices you mark as trusted. There is no "pull cookies" request, so credentials only move when the sender pushes them. |
 | Over-broad permissions | `cookies` and `<all_urls>` are optional and only requested when needed. Incognito is not allowed. There are no content scripts. |
 | Key theft from disk | Identity and pair keys are non-extractable WebCrypto keys stored in IndexedDB. Cookies are never persisted by the extension. |
 | XSS in extension UI | Strict CSP, bundled fonts and assets only, no remote code, no `innerHTML`. |

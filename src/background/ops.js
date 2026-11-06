@@ -2,6 +2,7 @@
 // Runs in the Chromium service worker / Firefox background page.
 import { actionApi, api } from '../shared/api.js';
 import { safeHttpUrl, validateTab } from '../shared/validate.js';
+import { updateMenus } from './quick.js';
 
 const SENSITIVE_PERMS = { permissions: ['cookies'], origins: ['<all_urls>'] };
 
@@ -123,6 +124,10 @@ export const ops = {
     await api.notifications.create({
       type: 'basic', iconUrl: api.runtime.getURL('icons/icon128.png'), title: String(title).slice(0, 100), message: String(message).slice(0, 200),
     });
+  },
+
+  async devices(info) {
+    await updateMenus(info);
   },
 
   async badge({ text }) {

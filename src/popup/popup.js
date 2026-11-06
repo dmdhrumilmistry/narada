@@ -243,6 +243,7 @@ $('sendBtn').addEventListener('click', guard(async () => {
 
 // ---------- devices ----------
 function renderDevices(s) {
+  if ($('devices').contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
   if (!changed('devices', [s.devices, s.remoteTabs])) return;
   const list = $('devices');
   if (!s.devices.length) {
@@ -269,7 +270,8 @@ function renderDevices(s) {
           }),
         }, 'Remove')),
       h('span', { class: `state ${online ? 'ok' : ''}` }, STATUS_TEXT[d.status] ?? d.status),
-      d.issue && !online ? h('span', { class: 'issue' }, `Last try: ${d.issue}. Make sure Narada is open on that device. Very strict networks can block direct connections.`) : null);
+      d.issue && !online ? h('span', { class: 'issue' }, `Last try: ${d.issue}. Make sure Narada is open on that device. Very strict networks can block direct connections.`) : null,
+      deviceOptions(d));
     if (remote) {
       li.append(remote.disabled
         ? h('span', { class: 'issue' }, 'This device keeps its tab list private.')
@@ -279,6 +281,34 @@ function renderDevices(s) {
     }
     return li;
   }));
+}
+
+// Per-device options: local name and auto-open for plain tabs.
+function deviceOptions(d) {
+  const name = h('input', { value: d.name, maxLength: 64, 'aria-label': `Name for ${d.name}` });
+  return h('details', { class: 'dev-opts' },
+    h('summary', {}, 'Options'),
+    h('form', {
+      class: 'row', onsubmit: guard(async (e) => {
+        e.preventDefault();
+        await call('setDeviceOptions', { deviceId: d.deviceId, name: name.value });
+        name.blur();
+        toast('Device renamed.');
+        await refresh();
+      }),
+    }, name, h('button', { class: 'btn small', type: 'submit' }, 'Rename')),
+    h('label', { class: 'switch' },
+      h('input', {
+        type: 'checkbox', checked: d.autoOpen,
+        onchange: guard(async (e) => {
+          await call('setDeviceOptions', { deviceId: d.deviceId, autoOpen: e.target.checked });
+          toast(e.target.checked ? `Tabs from ${d.name} will open automatically.` : `Tabs from ${d.name} will wait for your OK.`);
+          await refresh();
+        }),
+      }),
+      h('span'),
+      ' Open its tabs automatically'),
+    h('small', { class: 'muted' }, 'Sign-in data (cookies, site storage) always waits for your approval.'));
 }
 
 // ---------- pairing ----------
@@ -408,7 +438,9 @@ $('settingsForm').addEventListener('submit', guard(async (e) => {
 function refreshUi() {
   const s = state;
   const online = s.devices.filter((d) => d.status === 'connected');
-  if (!online.some((d) => d.deviceId === target)) target = online[0]?.deviceId ?? null;
+  if (!online.some((d) => d.deviceId === target)) {
+    target = online.find((d) => d.deviceId === s.settings.lastTarget)?.deviceId ?? online[0]?.deviceId ?? null;
+  }
   $('deviceName').textContent = `This device: ${s.device.name}`;
   $('deviceId').textContent = s.device.id;
   $('webrtcWarn').hidden = s.webrtc !== false;
