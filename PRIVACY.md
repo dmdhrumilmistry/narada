@@ -15,6 +15,8 @@ else, including the developer, receives your data.
 * A device identity key and the keys for devices you pair. These are non-extractable
   WebCrypto keys stored in the extension's local IndexedDB.
 * Your settings: device name, relay list, and whether paired devices may see your tab list.
+* A history of the last 50 tabs you received (title and link only). You can clear it or
+  turn it off in Settings. It never holds cookies, site storage or note text.
 
 Unpairing a device deletes its keys. Uninstalling the extension deletes everything.
 
@@ -24,6 +26,7 @@ Unpairing a device deletes its keys. Uninstalling the extension deletes everythi
 | Tab URL, title and pinned state | Your paired device only | When you press Send |
 | Cookies and site storage (localStorage/sessionStorage) for the tabs you chose | Your paired device only | Only when you turn on "Keep me signed in" and press Send |
 | List of open tab titles and URLs | Your paired device only | When that device asks, and only if "Let my devices see my open tabs" is on |
+| Notes (text you type or select) | Your paired device only | When you send a note. The receiver keeps it in memory only, never on disk, and it expires after 15 minutes |
 
 Everything above travels **directly between your browsers** over an
 end-to-end encrypted WebRTC connection, and is never sent to the developer or any third party.

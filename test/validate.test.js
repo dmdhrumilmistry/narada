@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { safeHttpUrl, safeRelayUrl, validateCookie, validateTab, validateTransfer } from '../src/shared/validate.js';
+import { cleanNoteText, safeHttpUrl, safeRelayUrl, validateCookie, validateNote, validateTab, validateTransfer } from '../src/shared/validate.js';
 
 const future = Date.now() / 1000 + 3600;
 
@@ -36,4 +36,13 @@ test('transfer limits', () => {
   assert.equal(validateTransfer({ id: 'x', tabs: Array(51).fill({ url: 'https://a.com' }) }), null);
   assert.equal(validateTransfer({ id: 'x', tabs: [{ url: 'javascript:1' }] }), null);
   assert.ok(validateTransfer({ id: 'x', tabs: [{ url: 'https://a.com' }] }));
+});
+
+test('notes: text only, size-limited, control chars stripped', () => {
+  assert.deepEqual(validateNote({ id: 'n1', text: 'hello\r\nworld\t!' }), { id: 'n1', text: 'hello\nworld\t!' });
+  assert.equal(cleanNoteText('a\u0000b\u001bc'), 'abc');
+  assert.equal(validateNote({ id: 'n1', text: '   ' }), null);
+  assert.equal(validateNote({ id: 'n1', text: 'x'.repeat(16 * 1024 + 1) }), null);
+  assert.equal(validateNote({ id: 'n1', text: { toString: () => 'x' } }), null);
+  assert.equal(validateNote({ text: 'no id' }), null);
 });

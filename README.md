@@ -27,6 +27,10 @@ tabs (and, if you choose, your logins) between your browsers. It does this
   to send the current tab to the device you used last.
 * **Trusted devices:** optionally auto-open plain tabs from a device you trust. Sign-in data
   always waits for approval.
+* **Notes:** send text (or right-click a selection) with a one-click Copy on the other side.
+  Notes are memory-only and expire after 15 minutes.
+* **Received history:** reopen any of the last 50 tabs you received. It keeps titles and
+  links only, and you can clear it or turn it off.
 * A friendly **comic-book UI**, toned down so it stays easy to read (see below).
 
 ## Supported browsers

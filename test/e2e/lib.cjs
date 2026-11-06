@@ -122,6 +122,28 @@ async function featureChecks({ sender, receiver, receiverTabUrls, senderTabIds }
   const pending = await waitFor('sign-in transfer queued', async () => (await receiver.call('getState')).incoming[0], 15_000);
   check(pending.tabs[0].cookieCount > 0, 'cookies from a trusted device still need approval');
   await receiver.call('rejectTransfer', { id: pending.id });
+
+  console.log('checking notes + history…');
+  const text = 'Wi-Fi: narada-guest\npassword: tathastu-108';
+  await sender.call('sendNote', { deviceId: receiverId, text });
+  const note = await waitFor('note arrives', async () => (await receiver.call('getState')).incoming.find((x) => x.kind === 'note'), 15_000);
+  check(note.text === text && note.fromName === 'Office laptop', 'note arrives intact (multi-line)', note);
+  await waitFor('delivered receipt', async () => (await sender.call('getState')).outgoing[0]?.status === 'delivered', 10_000);
+  check(true, 'sender sees "delivered"');
+  await receiver.call('dismissNote', { id: note.id });
+  await waitFor('read receipt', async () => (await sender.call('getState')).outgoing[0]?.status === 'read', 10_000);
+  check(true, 'sender sees "read" after the note is dismissed');
+
+  await sender.call('quickNote', { text: 'selected text from a page' });
+  const q2 = await waitFor('quick note arrives', async () => (await receiver.call('getState')).incoming.find((x) => x.kind === 'note'), 15_000);
+  check(q2.text === 'selected text from a page', 'quick note (right-click selection) goes to the last-used device');
+  await receiver.call('dismissNote', { id: q2.id });
+
+  const hist = (await receiver.call('getState')).history;
+  check(hist.some((e) => e.tabs.some((t) => t.url.includes('auto=1'))), 'received tabs are kept in history', hist.length);
+  check(JSON.stringify(hist).indexOf('secret123') === -1 && JSON.stringify(hist).indexOf('tathastu') === -1, 'history holds no cookies or note text');
+  await receiver.call('clearHistory');
+  check((await receiver.call('getState')).history.length === 0, 'history can be cleared');
 }
 
 module.exports = {

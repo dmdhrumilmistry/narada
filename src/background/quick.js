@@ -24,7 +24,7 @@ export function updateMenus({ devices = [] } = {}) {
     const m = menus();
     if (!m) return;
     await m.removeAll();
-    const contexts = ['page', 'link', ...(IS_FIREFOX ? ['tab'] : [])];
+    const contexts = ['page', 'link', 'selection', ...(IS_FIREFOX ? ['tab'] : [])];
     m.create({ id: ROOT, title: 'Send to device with Narada', contexts });
     if (!devices.length) {
       m.create({ id: 'narada-none', parentId: ROOT, title: 'No paired devices yet: open Narada to pair', enabled: false, contexts });
@@ -49,6 +49,16 @@ async function quickSend(engineCall, deviceId, url, title) {
   }
 }
 
+async function quickNote(engineCall, deviceId, text) {
+  try {
+    const r = await engineCall('quickNote', { deviceId, text });
+    // No preview of the note text in the notification.
+    await notify(`Note sent to ${r.name}`, 'They can copy it from Narada.');
+  } catch (e) {
+    await notify('Narada could not send the note', e.message || String(e));
+  }
+}
+
 export function setupQuickSend(engineCall) {
   menus()?.onClicked.addListener((info, tab) => {
     const id = String(info.menuItemId);
@@ -56,6 +66,8 @@ export function setupQuickSend(engineCall) {
     if (tab?.incognito) return notify('Narada', 'Private windows are never synced.');
     const deviceId = id.slice('send:'.length);
     if (info.linkUrl) return quickSend(engineCall, deviceId, info.linkUrl, info.linkText || info.selectionText || info.linkUrl);
+    // Selected text (not on a link) travels as a note.
+    if (info.selectionText) return quickNote(engineCall, deviceId, info.selectionText);
     return quickSend(engineCall, deviceId, tab?.url ?? info.pageUrl, tab?.title);
   });
 

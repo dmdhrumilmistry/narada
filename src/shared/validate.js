@@ -118,3 +118,17 @@ export function validateTabList(list) {
     })
     .filter(Boolean);
 }
+
+// Text notes: plain strings only, control characters removed except newline and tab.
+export function cleanNoteText(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\r\n?/g, '\n');
+  if (!text.trim() || text.length > LIMITS.noteLength) return null;
+  return text;
+}
+
+export function validateNote(msg) {
+  if (!msg || !isStr(msg.id, 64)) return null;
+  const text = cleanNoteText(msg.text);
+  return text ? { id: msg.id, text } : null;
+}
