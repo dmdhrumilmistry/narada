@@ -81,7 +81,7 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 
 ### 3.2 Pairing (one-time code + SAS)
 1. Device A creates a random 256-bit secret `S` and shows the code
-   `WS1-<base64url(S)>`. It expires after 10 min and works only once.
+   `NRD1-<base64url(S)>`. It expires after 10 min and works only once.
 2. Both sides derive from `S` with HKDF: a rendezvous topic (a Nostr `#p` tag
    value) and an AES-256-GCM key. Relays only see random hex and ciphertext.
 3. B → A `hello {pubB, nameB, nonceB}`
@@ -150,10 +150,13 @@ If WebRTC is disabled (for example LibreWolf with `media.peerconnection.enabled=
 the engine detects it and the UI explains how to turn it back on.
 
 ### UI
-The popup is styled as a comic book: halftone paper, inked panels, speech
-bubbles, and sound-effect bursts ("WHOOSH!", "ZAP!", "BANDHAN!", "SHABASH!").
-The fonts (Bangers, Comic Neue, both SIL OFL) are bundled, so nothing loads
-remotely. It supports light and dark mode and respects `prefers-reduced-motion`.
+The popup is a palm-leaf manuscript (tāḍapatra) strung on a veena. Each device is
+a string: taut and gold when online, slack when offline, and plucked when you send.
+Tabs are leaves, and the binding hole is the checkbox. The fonts are Yatra One
+(display, used sparingly) and Mukta (UI text), both SIL OFL and bundled. There's a
+bottom navigation bar and a single sticky action button that spells out the action.
+The popup opens on the Inbox when something is waiting. Light and dark themes are
+included, and `prefers-reduced-motion` is respected.
 
 ## 4. Security practices
 

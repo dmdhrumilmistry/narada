@@ -6,92 +6,114 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header class="masthead">
-    <img src="assets/narada.svg" alt="" class="mascot" width="64" height="64">
-    <div class="title-block">
-      <h1>Narada</h1>
-      <p class="bubble" id="quip">Narayan Narayan! Your tabs travel across every loka.</p>
+  <header class="top">
+    <img src="assets/narada.svg" alt="" class="mark" width="30" height="30">
+    <div class="brand">
+      <h1>Narada <span lang="sa" class="deva">नारद</span></h1>
+      <p id="deviceName" class="sub"></p>
     </div>
+    <span id="netStatus" class="net" title=""></span>
   </header>
-  <div class="statusbar">
-    <span id="deviceName" class="chip"></span>
-    <span id="relayStatus" class="chip"></span>
-  </div>
-  <p id="webrtcWarn" class="panel caution" hidden>
-    WebRTC is switched off in this browser, so Narada can't connect.
-    In Firefox-based browsers set <code>media.peerconnection.enabled</code> to <code>true</code> in about:config.
+
+  <p id="webrtcWarn" class="notice danger" hidden>
+    WebRTC is turned off in this browser, so Narada can't connect.
+    In Firefox-based browsers, set <code>media.peerconnection.enabled</code> to <code>true</code> in about:config.
   </p>
 
-  <nav>
-    <button data-view="send" class="active"><b>Bhejo</b><small>send</small></button>
-    <button data-view="devices"><b>Lokas</b><small>devices</small></button>
-    <button data-view="incoming"><b>Sandesh</b><small>inbox</small><span id="incomingCount" class="pill" hidden></span></button>
-    <button data-view="settings"><b>Yantra</b><small>settings</small></button>
-  </nav>
-
   <main>
-    <section id="view-send" class="panel">
-      <h2 class="caption">Pick tabs to send</h2>
-      <label class="row">To
-        <select id="target"></select>
-      </label>
-      <div class="row between">
-        <label><input type="checkbox" id="selectAll"> Select all</label>
-        <button id="reloadTabs" class="link">Refresh</button>
+    <!-- SEND -->
+    <section id="view-send">
+      <div class="label-row"><h2>Send to</h2></div>
+      <ul id="targets" class="strings" role="radiogroup" aria-label="Send to device"></ul>
+
+      <div class="label-row">
+        <h2>Tabs in this window</h2>
+        <button id="selectAll" class="text-btn" type="button">Select all</button>
       </div>
-      <ul id="tabList" class="list"></ul>
-      <fieldset>
-        <label><input type="checkbox" id="optCookies"> Include cookies (keeps you logged in)</label>
-        <label><input type="checkbox" id="optStorage"> Include site storage (localStorage / sessionStorage)</label>
-        <p id="sensitiveWarn" class="caution" hidden>
-          Careful! Cookies and site storage are login credentials. Send them only to your own devices. They are
-          end-to-end encrypted, go directly peer-to-peer, and the other device must approve them first.
+      <ul id="tabList" class="leaves" aria-label="Tabs"></ul>
+
+      <details id="carry" class="carry">
+        <summary>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <span>Keep me signed in on the other device</span>
+          <span id="carryState" class="carry-state">Off</span>
+        </summary>
+        <label class="switch"><input type="checkbox" id="optCookies"><span></span> Include cookies</label>
+        <label class="switch"><input type="checkbox" id="optStorage"><span></span> Include site storage <small>(localStorage, sessionStorage)</small></label>
+        <p id="sensitiveWarn" class="notice" hidden>
+          Cookies and site storage are sign-in credentials, so send them only to your own devices. They're end-to-end
+          encrypted, go directly between your devices, and won't be used until you approve them on the other side.
         </p>
-      </fieldset>
-      <button id="sendBtn" class="pow">Send!</button>
-      <p id="sendResult" class="bubble" hidden></p>
-      <h3 class="caption small-caption">Recently sent</h3>
-      <ul id="outgoing" class="list small"></ul>
+      </details>
     </section>
 
-    <section id="view-devices" class="panel" hidden>
-      <h2 class="caption">Your lokas</h2>
-      <ul id="devices" class="list"></ul>
-      <h3 class="caption small-caption">Pair a new device</h3>
+    <!-- DEVICES -->
+    <section id="view-devices" hidden>
+      <div class="label-row"><h2>Your devices</h2></div>
+      <ul id="devices" class="strings"></ul>
+
+      <div class="label-row"><h2>Add a device</h2></div>
       <div id="pairing"></div>
-      <div id="pairControls">
-        <button id="pairStart" class="pow">Create pairing code</button>
-        <div class="row">
-          <input id="pairCode" placeholder="…or paste a code from the other device" autocomplete="off" spellcheck="false">
-          <button id="pairJoin" class="pow small-pow">Join</button>
-        </div>
+      <div id="pairControls" class="pair-choice">
+        <button id="pairStart" class="choice" type="button">
+          <strong>Show a code</strong><span>on this device</span>
+        </button>
+        <form id="pairJoinForm" class="choice join">
+          <strong>Enter a code</strong>
+          <span class="join-row">
+            <input id="pairCode" placeholder="NRD1-…" autocomplete="off" spellcheck="false" aria-label="Pairing code">
+            <button id="pairJoin" class="btn small" type="submit">Join</button>
+          </span>
+        </form>
       </div>
     </section>
 
-    <section id="view-incoming" class="panel" hidden>
-      <h2 class="caption">Sandesh: incoming messages</h2>
-      <p class="small muted">Nothing is opened or imported until you accept. Requests expire after 5 minutes.</p>
-      <ul id="incoming" class="list"></ul>
+    <!-- INBOX -->
+    <section id="view-incoming" hidden>
+      <div class="label-row"><h2>Waiting for you</h2></div>
+      <ul id="incoming" class="cards"></ul>
+      <div class="label-row"><h2>Sent recently</h2></div>
+      <ul id="outgoing" class="history"></ul>
     </section>
 
-    <section id="view-settings" class="panel" hidden>
-      <h2 class="caption">Yantra: settings</h2>
-      <label class="col">Device name <input id="setName" maxlength="64"></label>
-      <label><input type="checkbox" id="setShare"> Let paired devices see my open tabs (titles &amp; URLs)</label>
-      <label class="col">Nostr relays for signaling (wss:// only, one per line)
-        <textarea id="setRelays" rows="5" spellcheck="false"></textarea>
-      </label>
-      <button id="saveSettings" class="pow">Save</button>
-      <p id="settingsResult" class="bubble" hidden></p>
-      <p class="small muted">
-        Device ID: <code id="deviceId"></code><br>
-        Connections use Google STUN servers only, with no TURN. After the handshake, data goes directly between your
-        devices and no server sits in between. Relays only ever see encrypted, unlinkable handshake messages.
+    <!-- SETTINGS -->
+    <section id="view-settings" hidden>
+      <form id="settingsForm" class="form">
+        <label>Device name<input id="setName" maxlength="64"></label>
+        <label class="switch"><input type="checkbox" id="setShare"><span></span> Let my devices see my open tabs</label>
+        <label>Signaling relays <small>wss:// only, one per line</small>
+          <textarea id="setRelays" rows="5" spellcheck="false"></textarea>
+        </label>
+        <button class="btn" type="submit">Save</button>
+      </form>
+      <p class="fine">
+        Device ID <code id="deviceId"></code><br>
+        Connections use Google STUN only, with no TURN. After the handshake, data goes directly between your devices.
+        Relays only see encrypted, unlinkable handshake messages.
       </p>
     </section>
   </main>
-  <p id="error" class="bubble error" hidden></p>
-  <div id="sfx" aria-hidden="true"></div>
+
+  <footer>
+    <div id="actionBar" class="action-bar">
+      <button id="sendBtn" class="btn primary wide" type="button" disabled>Choose tabs to send</button>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <nav aria-label="Sections">
+      <button data-view="send" class="active" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h13M12 6l6 6-6 6"/></svg>Send
+      </button>
+      <button data-view="devices" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="7" r="3"/><path d="M8.2 14.8l7.6-5.6"/></svg>Devices
+      </button>
+      <button data-view="incoming" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l3-8h10l3 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg>Inbox<span id="incomingCount" class="badge" hidden></span>
+      </button>
+      <button data-view="settings" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings
+      </button>
+    </nav>
+  </footer>
   <script src="popup.js"></script>
 </body>
 </html>

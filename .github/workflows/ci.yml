@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests, build & lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Build Chromium + Firefox
+        run: npm run build
+      - name: Lint Firefox add-on (web-ext)
+        run: npx --yes web-ext@10.8.0 lint --source-dir dist/firefox
+      - name: Package
+        run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: narada-builds
+          path: |
+            dist/narada-chromium.zip
+            dist/narada-firefox.zip
+          if-no-files-found: error
+
+  e2e:
+    name: E2E (real browsers, public relays)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GECKODRIVER_VERSION: 0.36.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright (+ system deps for Firefox)
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright install-deps firefox
+      - name: Download Firefox ESR and geckodriver
+        run: |
+          mkdir -p "$RUNNER_TEMP/ff"
+          curl -fsSL "https://download.mozilla.org/?product=firefox-esr-latest-ssl&os=linux64&lang=en-US" -o "$RUNNER_TEMP/ff/firefox.tar"
+          tar -xf "$RUNNER_TEMP/ff/firefox.tar" -C "$RUNNER_TEMP/ff"
+          curl -fsSL "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" | tar -xz -C "$RUNNER_TEMP/ff"
+          "$RUNNER_TEMP/ff/firefox/firefox" --version
+      - name: Prepare test builds
+        run: npm run e2e:prepare
+      # Public relays can be briefly unavailable, so each suite gets one retry.
+      - name: Chromium <-> Chromium
+        run: npm run e2e:chromium || (echo "retrying once" && npm run e2e:chromium)
+      - name: Chromium <-> Firefox
+        env:
+          FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox
+          GECKODRIVER: ${{ runner.temp }}/ff/geckodriver
+        run: npm run e2e:firefox || (echo "retrying once" && npm run e2e:firefox)

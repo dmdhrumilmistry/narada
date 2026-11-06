@@ -25,7 +25,7 @@ export const DEFAULT_RELAYS = [
 // Ephemeral event kind range (20000-29999): relays do not store these.
 export const NOSTR_KIND = 25133; // app-specific ephemeral kind
 
-export const PAIR_CODE_PREFIX = 'WS1-';
+export const PAIR_CODE_PREFIX = 'NRD1-';
 export const PAIR_CODE_TTL_MS = 10 * 60 * 1000;
 export const SIGNAL_MAX_AGE_S = 120;
 export const OFFER_TIMEOUT_MS = 30_000;

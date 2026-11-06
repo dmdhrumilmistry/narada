@@ -1,4 +1,4 @@
-<p align="center"><img src="src/icons/icon128.png" alt="Narada mascot" width="96"></p>
+<p align="center"><img src="src/icons/icon128.png" alt="Narada" width="96"></p>
 
 # Narada: *Narayan Narayan!* Your tabs, across every loka.
 
@@ -8,9 +8,9 @@ tabs (and, if you choose, your logins) between your browsers. It does this
 **peer-to-peer**, with no central server in between.
 
 <p align="center">
-  <img src="docs/screenshots/send-light.png" alt="Send tab, light theme" width="260">
-  <img src="docs/screenshots/pair-dark.png" alt="Pairing, dark theme" width="260">
-  <img src="docs/screenshots/whoosh.png" alt="WHOOSH! sound-effect burst" width="260">
+  <img src="docs/screenshots/send-light.png" alt="Send: pick a device string, tick tab leaves, one clear button" width="230">
+  <img src="docs/screenshots/pair-verify.png" alt="Pairing: compare six digits, dark theme" width="230">
+  <img src="docs/screenshots/inbox-light.png" alt="Inbox: approve incoming tabs" width="230">
 </p>
 
 * **Works in every Chromium and Firefox browser**, in any combination (Chrome ↔ Firefox,
@@ -23,7 +23,7 @@ tabs (and, if you choose, your logins) between your browsers. It does this
   ephemeral ECDH, AES-256-GCM and replay protection, on top of DTLS.
 * **Send only the tabs you pick**, optionally with their **cookies and site storage**,
   so you stay logged in. The receiving device must approve every transfer.
-* A **comic-book UI** with speech bubbles and sound-effect bursts, in light and dark mode.
+* A **palm-leaf manuscript and veena-string UI**, unlike any other sync tool (see below).
 
 ## Supported browsers
 
@@ -58,24 +58,37 @@ npm run package      # optional: dist/narada-chromium.zip + dist/narada-firefox.
   *Load Temporary Add-on…* and select `dist/firefox/manifest.json`. For a
   permanent install, sign the add-on via AMO (`npx web-ext sign`).
 
+## The design
+
+Narada's popup is a **tāḍapatra**, the palm-leaf manuscripts the Puranas were
+written on, strung on a **veena**:
+
+* **Devices are strings.** An online device's string is taut and gold, an offline
+  one hangs slack, and a connecting one shimmers. When you send, that string is
+  *plucked*.
+* **Tabs are palm leaves.** The leaf's binding hole is the checkbox.
+* **Type:** *Yatra One*, a Latin display face drawn with Devanagari calligraphy
+  in mind, is used only for the name and the pairing digits. *Mukta*, from an
+  Indian type foundry, is used for everything you read. The fonts are bundled and nothing loads remotely.
+* **Light** is parchment and indigo ink. **Dark** is the night sky between the lokas,
+  with brass accents. Animations respect `prefers-reduced-motion`.
+
+It's built to be quick to use: four sections in a bottom bar (Send, Devices, Inbox,
+Settings), and one sticky button that always says exactly what will happen
+("Send 3 tabs + sign-in to Pixel"). The popup opens straight to the Inbox when
+something is waiting, or to Devices when you haven't paired anything yet.
+
 ## Usage
 
-The popup has four comic panels:
-
-| Panel | What it does |
-|---|---|
-| **Bhejo** (send) | Pick tabs and a device, then optionally include cookies and site storage. **WHOOSH!** |
-| **Lokas** (devices) | Pair new devices, see who's online, and browse a device's open tabs. |
-| **Sandesh** (inbox) | Review incoming tabs and exactly which cookie domains and storage will be imported, then Accept or Reject. |
-| **Yantra** (settings) | Device name, tab-list sharing, and the relay list. |
-
-1. **Pair**: in *Lokas* on device A, click *Create pairing code*. Paste the code on
-   device B and click *Join*. Both show a 6-digit number. If the numbers match,
-   confirm on each device. **BANDHAN!**
-2. **Send**: in *Bhejo*, tick tabs, choose a device and press **Send!** Ticking
-   *Include cookies* or *Include site storage* asks for that permission the first time.
-3. **Approve**: the receiver gets a notification. *Sandesh* shows what arrived, and
-   nothing is applied until you accept. Requests expire after 5 minutes.
+1. **Pair**: on device A, open *Devices* → *Show a code*. On device B, open
+   *Devices* → *Enter a code*, paste it and click *Join*. Both devices show six
+   digits. Tap *Yes, they match* on each.
+2. **Send**: in *Send*, choose a device string, tick the tab leaves, and press the
+   button. To stay logged in on the other side, open *Keep me signed in* and turn on
+   cookies and/or site storage. The first time, the browser asks for that permission.
+3. **Approve**: the receiver gets a notification. *Inbox* shows the tabs and exactly
+   which sites you would be signed in to. Nothing is applied until you tap
+   *Accept & sign in* (or *Open tabs*). Requests expire after 5 minutes.
 
 ## Security model (summary)
 
@@ -102,6 +115,15 @@ Full design: [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Tests
 
+CI (`.github/workflows/ci.yml`) runs on every push and pull request:
+1. **Unit tests, build & lint**: `npm test`, both builds, `web-ext lint` for Firefox,
+   and the packaged zips uploaded as artifacts.
+2. **E2E with real browsers**: Chromium ↔ Chromium and Chromium ↔ Firefox ESR pair over
+   the public Nostr relays, connect over WebRTC, check that the relay sockets close,
+   then transfer a tab with an HttpOnly cookie and localStorage and verify both arrived.
+
+Locally:
+
 ```bash
 npm test                                  # unit tests (crypto, pairing, secure channel, validators)
 npm run e2e:prepare                       # build + test copies with permissions pre-granted
@@ -120,12 +142,12 @@ src/engine       crypto, IndexedDB store, Nostr pool, signaling, pairing,
                  secure channel, WebRTC peer, engine orchestration
 src/background   browser ops (tabs/cookies/storage) + per-browser entry points
 src/offscreen    Chromium engine host page (offscreen document or fallback window)
-src/popup        comic UI
-src/assets       Narada mascot (SVG; icons are rendered from it by scripts/make-icons.mjs)
+src/popup        UI (palm-leaf & veena-string design)
+src/assets       Narada mark (SVG; icons are rendered from it by scripts/make-icons.mjs)
 build.mjs        bundles with esbuild, copies fonts, writes per-browser manifests
 test/            unit tests; test/e2e real-browser tests
 ```
 
-Fonts: [Bangers](https://github.com/googlefonts/bangers) and
-[Comic Neue](https://github.com/crozynski/comicneue), both SIL Open Font License,
+Fonts: [Yatra One](https://github.com/google/fonts/tree/main/ofl/yatraone) and
+[Mukta](https://github.com/EkType/Mukta), both SIL Open Font License,
 bundled in `fonts/` with their licenses.

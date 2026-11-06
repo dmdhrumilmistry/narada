@@ -35,7 +35,7 @@ test('wrong code never reaches verify; third party cannot join used code', async
   const a = session(pool, ida);
   await a.start();
   const wrong = session(pool, idc);
-  await wrong.join('WS1-' + 'A'.repeat(43));
+  await wrong.join('NRD1-' + 'A'.repeat(43));
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(a.state, 'waiting');
   const b = session(pool, idb);
@@ -51,5 +51,5 @@ test('wrong code never reaches verify; third party cannot join used code', async
 
 test('parseCode rejects garbage', () => {
   assert.throws(() => parseCode('hello'));
-  assert.throws(() => parseCode('WS1-abc'));
+  assert.throws(() => parseCode('NRD1-abc'));
 });
