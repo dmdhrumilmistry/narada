@@ -1,0 +1,32 @@
+{
+  "name": "websync",
+  "version": "0.1.0",
+  "description": "P2P browser tab/session sync over WebRTC with Nostr signaling",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.js",
+    "icons": "node scripts/make-icons.mjs src/icons",
+    "package": "npm run build && cd dist/chrome && zip -qr ../websync-chrome.zip . && cd ../firefox && zip -qr ../websync-firefox.zip ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dmdhrumilmistry/websync.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dmdhrumilmistry/websync/issues"
+  },
+  "homepage": "https://github.com/dmdhrumilmistry/websync#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.4.0"
+  },
+  "private": true,
+  "type": "module"
+}
