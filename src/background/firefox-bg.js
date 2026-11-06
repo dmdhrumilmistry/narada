@@ -9,6 +9,9 @@ const engine = new Engine(callOps);
 const ready = engine.init();
 const engineCall = async (cmd, args) => { await ready; return engine.command(cmd, args); };
 setupQuickSend(engineCall);
+api.storage.onChanged.addListener((_changes, area) => {
+  if (area === 'managed') engineCall('reloadConfig').catch(() => {});
+});
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== api.runtime.id || msg?.target !== 'bg') return false;

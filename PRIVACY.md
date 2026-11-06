@@ -34,6 +34,18 @@ On the receiving browser, nothing is opened or imported until you accept it.
 The extension does not keep cookies or storage it receives. Pending transfers are held
 in memory and expire after 5 minutes.
 
+## Optional logging (OpenTelemetry)
+Logging export is **off by default**. If you, or your organization through device
+policy, turn it on, Narada sends operational events (for example "connected", "3 tabs sent",
+error messages) to the OpenTelemetry collector configured in Settings. That's a server
+you or your organization choose, never the developer's. Exported events never include URLs,
+page titles, cookies, site storage or note text.
+
+## Settings managed by your organization
+If your browser is managed, your organization can set or lock Narada's settings, for example
+turning off cookie transfer or turning on logging to its own collector. Narada shows
+"Some settings are managed by your organization" when this applies.
+
 ## Third parties involved in connecting
 * **Public Nostr relays** (editable in Settings) carry a short handshake so your
   devices can find each other. These messages are encrypted and signed by throwaway keys.
@@ -47,6 +59,7 @@ in memory and expire after 5 minutes.
 * `scripting`: read or restore site storage for a tab, only when you ask for it.
 * `notifications`: tell you when a device sends you tabs.
 * `contextMenus` / `menus`: add "Send to device with Narada" to the right-click menu.
+* `storage`: read settings your organization sets through browser policy (managed storage).
 * `offscreen` (Chromium only): run the WebRTC connection in the background.
 * `cookies` and access to all sites: **optional**. Requested only the first time you
   send or accept sign-in data, to read cookies for the tabs you picked or set them on accept.

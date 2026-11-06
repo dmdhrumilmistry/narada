@@ -69,6 +69,7 @@
       <ul id="devices" class="strings"></ul>
 
       <h2 class="caption">Pair a new device</h2>
+      <p id="pairOff" class="caution" hidden>Pairing new devices is turned off (in Yantra, or by your organization).</p>
       <div id="pairing"></div>
       <div id="pairControls" class="pair-choice">
         <button id="pairStart" class="choice" type="button">
@@ -102,13 +103,44 @@
     <!-- SETTINGS -->
     <section id="view-settings" hidden>
       <h2 class="caption">Yantra</h2>
+      <p id="managedBanner" class="caution" hidden>🏢 Some settings are managed by your organization. Those are locked 🔒.</p>
       <form id="settingsForm" class="form">
-        <label>Device name<input id="setName" maxlength="64"></label>
-        <label class="switch"><input type="checkbox" id="setShare"><span></span> Let my devices see my open tabs</label>
-        <label class="switch"><input type="checkbox" id="setHistory"><span></span> Keep a history of received tabs (titles &amp; links only)</label>
-        <label>Signaling relays <small>wss:// only, one per line</small>
-          <textarea id="setRelays" rows="5" spellcheck="false"></textarea>
+        <label data-key="name">Device name<input id="setName" maxlength="64"></label>
+
+        <h3 class="sub">Features</h3>
+        <label class="switch" data-key="allowPairing"><input type="checkbox" id="setAllowPairing"><span></span> Allow pairing new devices</label>
+        <label class="switch" data-key="allowCookieTransfer"><input type="checkbox" id="setAllowCookies"><span></span> Allow sending &amp; receiving cookies</label>
+        <label class="switch" data-key="allowStorageTransfer"><input type="checkbox" id="setAllowStorage"><span></span> Allow sending &amp; receiving site storage</label>
+        <label class="switch" data-key="allowNotes"><input type="checkbox" id="setAllowNotes"><span></span> Allow notes</label>
+        <label class="switch" data-key="allowAutoOpen"><input type="checkbox" id="setAllowAutoOpen"><span></span> Allow trusted devices to auto-open tabs</label>
+        <label class="switch" data-key="shareTabList"><input type="checkbox" id="setShare"><span></span> Let my devices see my open tabs</label>
+        <label class="switch" data-key="keepHistory"><input type="checkbox" id="setHistory"><span></span> Keep a history of received tabs (titles &amp; links only)</label>
+
+        <h3 class="sub">Network</h3>
+        <label data-key="relays">Signaling relays <small>wss:// only, one per line</small>
+          <textarea id="setRelays" rows="4" spellcheck="false"></textarea>
         </label>
+        <label data-key="stunServers">STUN servers <small>stun: / stuns: only, one per line. No TURN, by design.</small>
+          <textarea id="setStun" rows="3" spellcheck="false"></textarea>
+        </label>
+
+        <h3 class="sub">Logging (OpenTelemetry)</h3>
+        <p class="fine">Off by default. Exports events only (connections, transfer counts, errors), never URLs, titles, cookies or notes.</p>
+        <label class="switch" data-key="telemetry.enabled"><input type="checkbox" id="setTelEnabled"><span></span> Export logs to an OTLP collector</label>
+        <label data-key="telemetry.endpoint">Collector endpoint <small>OTLP/HTTP, https:// (or http://localhost)</small>
+          <input id="setTelEndpoint" placeholder="https://otel.example.com" spellcheck="false">
+        </label>
+        <label data-key="telemetry.logLevel">Minimum level
+          <select id="setTelLevel"><option>error</option><option>warn</option><option>info</option><option>debug</option><option>off</option></select>
+        </label>
+        <label data-key="telemetry.headers">Headers <small>one per line, e.g. Authorization: Bearer …</small>
+          <textarea id="setTelHeaders" rows="2" spellcheck="false"></textarea>
+        </label>
+        <label data-key="telemetry.resourceAttributes">Resource attributes <small>key=value, one per line</small>
+          <textarea id="setTelAttrs" rows="2" spellcheck="false" placeholder="deployment.environment=prod"></textarea>
+        </label>
+        <p id="telStatus" class="fine" hidden></p>
+
         <button class="btn" type="submit">Save</button>
       </form>
       <h2 class="caption">Shortcuts</h2>
@@ -121,7 +153,7 @@
         Quick sends carry the tab only, never sign-in data.</p>
       <p class="fine">
         Device ID <code id="deviceId"></code><br>
-        Connections use Google STUN only, with no TURN. After the handshake, data goes directly between your devices.
+        Connections use STUN only (Google by default), with no TURN. After the handshake, data goes directly between your devices.
         Relays only see encrypted, unlinkable handshake messages.
       </p>
     </section>

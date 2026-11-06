@@ -14,7 +14,8 @@
     "e2e:prepare": "npm run build && node test/e2e/prepare.mjs",
     "e2e:chromium": "node test/e2e/chromium-to-chromium.cjs",
     "e2e:firefox": "node test/e2e/chromium-to-firefox.cjs",
-    "site": "node scripts/build-site.mjs"
+    "site": "node scripts/build-site.mjs",
+    "e2e:policy": "node test/e2e/managed-policy.cjs"
   },
   "repository": {
     "type": "git",

@@ -32,6 +32,25 @@ function startSite(port = 8765) {
   return new Promise((res) => server.listen(port, () => res(server)));
 }
 
+// Minimal OTLP/HTTP logs collector for tests. Records every request it receives.
+function startCollector(port = 4318) {
+  const received = [];
+  const server = http.createServer((q, r) => {
+    r.setHeader('Access-Control-Allow-Origin', '*');
+    r.setHeader('Access-Control-Allow-Headers', '*');
+    r.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    if (q.method === 'OPTIONS') { r.statusCode = 204; return r.end(); }
+    let body = '';
+    q.on('data', (c) => { body += c; });
+    q.on('end', () => {
+      received.push({ path: q.url, headers: q.headers, raw: body, json: JSON.parse(body || '{}') });
+      r.setHeader('content-type', 'application/json');
+      r.end('{}');
+    });
+  });
+  return new Promise((res) => server.listen(port, () => res({ server, received })));
+}
+
 async function launchChromium(chromium, extPath, profileDir) {
   const ctx = await chromium.launchPersistentContext(profileDir, {
     headless: true, channel: 'chromium',
@@ -144,7 +163,51 @@ async function featureChecks({ sender, receiver, receiverTabUrls, senderTabIds }
   check(JSON.stringify(hist).indexOf('secret123') === -1 && JSON.stringify(hist).indexOf('tathastu') === -1, 'history holds no cookies or note text');
   await receiver.call('clearHistory');
   check((await receiver.call('getState')).history.length === 0, 'history can be cleared');
+
+  console.log('checking settings enforcement (receiver side)…');
+  await receiver.call('setSettings', { allowNotes: false, allowCookieTransfer: false });
+  await sender.call('sendNote', { deviceId: receiverId, text: 'should be blocked' });
+  await waitFor('note blocked', async () => (await sender.call('getState')).outgoing[0]?.status === 'blocked', 10_000);
+  check(!(await receiver.call('getState')).incoming.length, 'receiver with notes off rejects notes ("blocked")');
+  await sender.call('sendTabs', { deviceId: receiverId, tabIds: await senderTabIds(), cookies: true, storage: false });
+  await waitFor('cookies blocked', async () => (await sender.call('getState')).outgoing[0]?.status === 'blocked', 10_000);
+  check(!(await receiver.call('getState')).incoming.length, 'receiver with cookies off rejects sign-in data, even from a trusted device');
+  await receiver.call('setSettings', { allowNotes: true, allowCookieTransfer: true });
+  await sender.call('setSettings', { allowNotes: false });
+  let err = '';
+  try { await sender.call('sendNote', { deviceId: receiverId, text: 'x' }); } catch (e) { err = e.message; }
+  check(/Notes are off/.test(err), 'sender with notes off cannot send notes', err);
+  await sender.call('setSettings', { allowNotes: true });
+}
+
+// OpenTelemetry export: events reach an OTLP collector, with no URLs, cookies or note text.
+async function telemetryChecks({ sender, receiver, senderTabIds, collector }) {
+  console.log('checking OpenTelemetry export…');
+  const receiverId = (await receiver.call('getState')).device.id;
+  await sender.call('setSettings', { telemetry: { enabled: true, endpoint: 'http://localhost:4318', logLevel: 'info', headers: { 'X-Narada-Token': 'tok-123' }, resourceAttributes: { 'deployment.environment': 'e2e' } } });
+  const masked = (await sender.call('getState')).settings.telemetry.headers['X-Narada-Token'];
+  check(masked === '••••', 'header secret is masked in the popup state', masked);
+  await sender.call('sendTabs', { deviceId: receiverId, tabIds: await senderTabIds(), cookies: true, storage: false });
+  await sender.call('sendNote', { deviceId: receiverId, text: 'top-secret-note-text' });
+  await sleep(1500);
+  await sender.call('flushTelemetry');
+  const batches = await waitFor('collector receives logs', async () => collector.received.length && collector.received, 15_000);
+  const all = batches.map((b) => b.raw).join('\n');
+  const records = batches.flatMap((b) => b.json.resourceLogs[0].scopeLogs[0].logRecords);
+  const events = new Set(records.map((r) => r.body.stringValue));
+  check(batches[0].path === '/v1/logs', 'OTLP/HTTP logs endpoint used', batches[0].path);
+  check(batches[0].headers['x-narada-token'] === 'tok-123', 'custom header sent to the collector');
+  check(events.has('transfer.sent') && events.has('note.sent'), 'transfer and note events exported', [...events]);
+  check(all.includes('"deployment.environment"') && all.includes('narada-extension'), 'resource attributes exported');
+  check(!all.includes('localhost:8765') && !all.includes('secret123') && !all.includes('top-secret-note-text'),
+    'exported logs contain no URLs, cookies or note text');
+  // tidy up the receiver
+  for (const x of (await receiver.call('getState')).incoming) {
+    if (x.kind === 'note') await receiver.call('dismissNote', { id: x.id }); else await receiver.call('rejectTransfer', { id: x.id });
+  }
 }
 
 module.exports = {
-  featureChecks, sleep, tmpDir, check, waitFor, startSite, launchChromium, pairConnectTransfer };
+  featureChecks,
+  telemetryChecks,
+  startCollector, sleep, tmpDir, check, waitFor, startSite, launchChromium, pairConnectTransfer };

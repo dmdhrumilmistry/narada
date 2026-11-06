@@ -137,6 +137,14 @@ main.panel {
 .remote { grid-column: 1 / -1; list-style: none; margin: 6px 0 0; padding: 0; max-height: 150px; overflow-y: auto; }
 .remote li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; border-top: 2px dotted var(--ink); }
 
+/* ---------- settings groups & locks ---------- */
+.form h3.sub { margin: 10px 0 0; font: 400 15px/1 var(--head); letter-spacing: .8px; border-bottom: 2px dotted var(--ink); padding-bottom: 4px; }
+.form .locked { opacity: .65; }
+.form .switch.locked::after { content: ' 🔒'; }
+.form > label.locked:not(.switch) { position: relative; }
+.form > label.locked:not(.switch)::after { content: '🔒'; position: absolute; right: 0; top: 0; }
+select { font: inherit; padding: 6px 8px; border: var(--line); border-radius: 7px; background: var(--panel); color: inherit; }
+
 /* ---------- notes & history ---------- */
 #noteBox textarea { width: 100%; margin: 4px 0 6px; resize: vertical; }
 #noteBox .btn { margin-bottom: 4px; }

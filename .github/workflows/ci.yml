@@ -78,3 +78,13 @@ jobs:
           FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox
           GECKODRIVER: ${{ runner.temp }}/ff/geckodriver
         run: npm run e2e:firefox || (echo "retrying once" && npm run e2e:firefox)
+      - name: Enterprise policy (Chromium + Firefox)
+        env:
+          FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox
+          GECKODRIVER: ${{ runner.temp }}/ff/geckodriver
+        # Only the policy directories need root; the browsers run as the normal user.
+        run: |
+          for d in /etc/chromium/policies/managed /etc/opt/chrome/policies/managed /etc/opt/chrome_for_testing/policies/managed; do
+            sudo mkdir -p "$d" && sudo chmod 777 "$d"
+          done
+          npm run e2e:policy

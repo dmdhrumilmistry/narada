@@ -318,7 +318,7 @@ function deviceOptions(d) {
     }, name, h('button', { class: 'btn small', type: 'submit' }, 'Rename')),
     h('label', { class: 'switch' },
       h('input', {
-        type: 'checkbox', checked: d.autoOpen,
+        type: 'checkbox', checked: d.autoOpen && state?.settings.allowAutoOpen !== false, disabled: state?.settings.allowAutoOpen === false,
         onchange: guard(async (e) => {
           await call('setDeviceOptions', { deviceId: d.deviceId, autoOpen: e.target.checked });
           toast(e.target.checked ? `Tabs from ${d.name} will open automatically.` : `Tabs from ${d.name} will wait for your OK.`);
@@ -473,27 +473,95 @@ function renderOutgoing(s) {
 }
 
 // ---------- settings ----------
+const MASK = '••••';
+const BOOL_FIELDS = {
+  setAllowPairing: 'allowPairing', setAllowCookies: 'allowCookieTransfer', setAllowStorage: 'allowStorageTransfer',
+  setAllowNotes: 'allowNotes', setAllowAutoOpen: 'allowAutoOpen', setShare: 'shareTabList', setHistory: 'keepHistory',
+};
+const lines = (v) => v.split('\n').map((x) => x.trim()).filter(Boolean);
+const isLocked = (key) => state?.locked?.includes(key);
+
 function loadSettings(s) {
   if (settingsLoaded) return;
   settingsLoaded = true;
+  const c = s.settings;
   $('setName').value = s.device.name;
-  $('setShare').checked = s.settings.shareTabList;
-  $('setHistory').checked = s.settings.keepHistory;
-  $('setRelays').value = s.settings.relays.join('\n');
+  for (const [id, key] of Object.entries(BOOL_FIELDS)) $(id).checked = c[key];
+  $('setRelays').value = c.relays.join('\n');
+  $('setStun').value = c.stunServers.join('\n');
+  $('setTelEnabled').checked = c.telemetry.enabled;
+  $('setTelEndpoint').value = c.telemetry.endpoint ?? '';
+  $('setTelLevel').value = c.telemetry.logLevel;
+  // Header values are secrets (API tokens): never shown, only masked.
+  $('setTelHeaders').value = Object.keys(c.telemetry.headers ?? {}).map((k) => `${k}: ${MASK}`).join('\n');
+  $('setTelAttrs').value = Object.entries(c.telemetry.resourceAttributes ?? {}).map(([k, v]) => `${k}=${v}`).join('\n');
+  // Lock what the organization controls.
+  $('managedBanner').hidden = !s.managed;
+  document.querySelectorAll('#settingsForm [data-key]').forEach((label) => {
+    const locked = isLocked(label.dataset.key);
+    label.classList.toggle('locked', locked);
+    label.querySelectorAll('input, textarea, select').forEach((el) => { el.disabled = locked; });
+    label.title = locked ? 'Managed by your organization' : '';
+  });
+  const tel = $('telStatus');
+  tel.hidden = !c.telemetry.enabled;
+  tel.textContent = s.telemetryFailures ? `⚠ Last ${s.telemetryFailures} export(s) failed. Check the endpoint and its CORS settings.` : '✓ Exporting logs.';
+}
+
+function parseHeaders(text) {
+  const out = {};
+  for (const l of lines(text)) {
+    const i = l.indexOf(':');
+    if (i < 1) throw new Error(`Header lines look like "Name: value" (got "${l}").`);
+    out[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+  }
+  return out;
+}
+
+function parseAttrs(text) {
+  const out = {};
+  for (const l of lines(text)) {
+    const i = l.indexOf('=');
+    if (i < 1) throw new Error(`Attribute lines look like key=value (got "${l}").`);
+    out[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+  }
+  return out;
 }
 
 $('settingsForm').addEventListener('submit', guard(async (e) => {
   e.preventDefault();
-  await call('setSettings', {
-    name: $('setName').value,
-    shareTabList: $('setShare').checked,
-    keepHistory: $('setHistory').checked,
-    relays: $('setRelays').value.split('\n').map((x) => x.trim()).filter(Boolean),
-  });
+  // Only send what the user may change; policy-locked keys are left out.
+  const patch = { name: $('setName').value };
+  for (const [id, key] of Object.entries(BOOL_FIELDS)) if (!isLocked(key)) patch[key] = $(id).checked;
+  if (!isLocked('relays')) patch.relays = lines($('setRelays').value);
+  if (!isLocked('stunServers')) patch.stunServers = lines($('setStun').value);
+  const tel = {};
+  if (!isLocked('telemetry.enabled')) tel.enabled = $('setTelEnabled').checked;
+  if (!isLocked('telemetry.endpoint')) tel.endpoint = $('setTelEndpoint').value.trim();
+  if (!isLocked('telemetry.logLevel')) tel.logLevel = $('setTelLevel').value;
+  if (!isLocked('telemetry.headers')) tel.headers = parseHeaders($('setTelHeaders').value);
+  if (!isLocked('telemetry.resourceAttributes')) tel.resourceAttributes = parseAttrs($('setTelAttrs').value);
+  if (tel.enabled && !tel.endpoint && !isLocked('telemetry.endpoint')) throw new Error('Add a collector endpoint to export logs.');
+  patch.telemetry = tel;
+  await call('setSettings', patch);
   settingsLoaded = false;
   toast('Settings saved.');
   await refresh();
 }));
+
+// Hide or disable features that are switched off (by the user or by policy).
+function applyFeatureFlags(s) {
+  const c = s.settings;
+  for (const [id, allowed] of [['optCookies', c.allowCookieTransfer], ['optStorage', c.allowStorageTransfer]]) {
+    $(id).disabled = !allowed;
+    if (!allowed) $(id).checked = false;
+    $(id).closest('label').title = allowed ? '' : 'Turned off in settings or by your organization';
+  }
+  $('carry').hidden = !c.allowCookieTransfer && !c.allowStorageTransfer;
+  $('noteBox').hidden = !c.allowNotes;
+  $('pairOff').hidden = c.allowPairing;
+  if (!c.allowPairing) $('pairControls').hidden = true;
+}
 
 // ---------- main loop ----------
 function refreshUi() {
@@ -516,6 +584,7 @@ function refreshUi() {
   renderIncoming(s);
   renderOutgoing(s);
   renderHistory(s);
+  applyFeatureFlags(s);
   loadSettings(s);
   updateAction();
 }

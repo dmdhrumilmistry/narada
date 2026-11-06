@@ -2,7 +2,7 @@
 // Run `npm run e2e:prepare` first. Env: PLAYWRIGHT (module path, optional).
 const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
-const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, check, waitFor } = require('./lib.cjs');
+const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, telemetryChecks, startCollector, check, waitFor } = require('./lib.cjs');
 
 (async () => {
   const site = await startSite();
@@ -35,6 +35,9 @@ const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, c
       receiverTabUrls: async () => B.ctx.pages().map((p) => p.url()),
       senderTabIds: async () => (await A.page.evaluate(() => chrome.tabs.query({ url: 'http://localhost/*' }))).map((t) => t.id).slice(0, 1),
     });
+    const collector = await startCollector();
+    await telemetryChecks({ sender: A, receiver: B, collector, senderTabIds: async () => (await A.page.evaluate(() => chrome.tabs.query({ url: 'http://localhost/*' }))).map((t) => t.id).slice(0, 1) });
+    collector.server.close();
     console.log('PASS chromium-to-chromium');
   } finally {
     await A.ctx.close();

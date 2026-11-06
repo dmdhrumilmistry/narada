@@ -1,17 +1,21 @@
 // Sync engine: identity, pairing, signaling, peer connections and the command API
 // used by the popup. Runs in the Chromium offscreen document or the Firefox
 // background page. Privileged browser APIs are reached through `ops`.
-import { DEFAULT_RELAYS, HISTORY_MAX, LIMITS, NOTE_TTL_MS, OFFER_TIMEOUT_MS, PENDING_TRANSFER_TTL_MS } from '../shared/constants.js';
-import { cleanName, cleanNoteText, safeRelayUrl, validateNote, validateTabList, validateTransfer } from '../shared/validate.js';
+import { HISTORY_MAX, LIMITS, NOTE_TTL_MS, OFFER_TIMEOUT_MS, PENDING_TRANSFER_TTL_MS } from '../shared/constants.js';
+import { effective, iceServersFrom, sanitize } from '../shared/config.js';
+import { cleanName, cleanNoteText, validateNote, validateTabList, validateTransfer } from '../shared/validate.js';
 import { b64u, generateIdentity, hex, rand } from './crypto.js';
 import { newNostrKey, RelayPool } from './nostr.js';
 import { deriveTopic, PairingSession } from './pairing.js';
 import { PeerLink } from './peer.js';
 import { SignalTopic } from './signaling.js';
 import * as store from './store.js';
+import { Telemetry } from './telemetry.js';
 
 const day = (offset = 0) => Math.floor(Date.now() / 86_400_000) + offset;
 const newId = () => b64u(rand(12));
+const manifestVersion = () => (globalThis.browser ?? globalThis.chrome)?.runtime?.getManifest?.().version ?? '0.0.0';
+const short = (id) => String(id ?? '').slice(0, 8);
 
 export function browserName(ua = navigator.userAgent) {
   if (navigator.brave) return 'Brave';
@@ -35,6 +39,10 @@ export class Engine {
     this.autoOpenLog = new Map(); // deviceId -> timestamps of auto-opened transfers (rate limit)
     this.sid = hex(rand(8));
     this.nostrKey = newNostrKey(); // ephemeral, never persisted
+    this.telemetry = new Telemetry({ version: manifestVersion(), browser: browserName() });
+    this.managed = {};
+    this.userSettings = {};
+    this.locked = new Set();
   }
 
   async init() {
@@ -46,13 +54,43 @@ export class Engine {
       this.identity = { ...id, name: `${browserName()} ${id.deviceId.slice(0, 4).toUpperCase()}`, createdAt: Date.now() };
       await store.set('identity', this.identity);
     }
-    this.settings = { relays: DEFAULT_RELAYS, shareTabList: true, keepHistory: true, ...(await store.get('settings')) };
+    // Config = defaults ← user settings ← organization policy (MDM / enterprise policy).
+    this.userSettings = (await store.get('settings')) ?? {};
+    this.managed = (await this.ops('getManaged').catch(() => ({}))) ?? {};
+    this.#applyConfig();
     this.history = this.settings.keepHistory ? ((await store.get('history')) ?? []) : [];
     for (const p of await store.listPrefix('pair:')) this.pairs.set(p.deviceId, p);
     this.#newPool();
     for (const id of this.pairs.keys()) { this.#setStatus(id, 'offline'); this.#listen(id); }
     setInterval(() => this.#rotateTopics(), 10 * 60 * 1000);
     for (const id of this.pairs.keys()) this.connect(id).catch(() => {});
+    this.telemetry.info('engine.start', { pairs: this.pairs.size, webrtc: this.webrtc, policy: Object.keys(this.managed).length ? 'managed' : 'none' });
+  }
+
+  // Recompute the effective config; called on start, on settings changes and when policy changes.
+  #applyConfig() {
+    const prevRelays = JSON.stringify(this.settings?.relays ?? null);
+    const { values, locked } = effective(this.userSettings, this.managed);
+    this.settings = { ...values, lastTarget: this.userSettings.lastTarget ?? null };
+    this.locked = locked;
+    this.telemetry.configure(values.telemetry, { deviceId: this.identity?.deviceId });
+    if (!values.keepHistory && this.history?.length) { this.history = []; store.del('history').catch(() => {}); }
+    if (this.pool && prevRelays !== JSON.stringify(values.relays)) {
+      for (const id of [...this.topics.keys()]) this.#unlisten(id);
+      this.#newPool();
+      for (const id of this.pairs.keys()) this.#listen(id);
+    }
+  }
+
+  #blocked(setting) {
+    this.telemetry.warn('policy.blocked', { setting });
+    return this.locked.has(setting) ? 'Blocked by your organization\'s policy.' : 'Turned off in Narada settings (Yantra).';
+  }
+
+  async #saveLastTarget(deviceId) {
+    this.userSettings.lastTarget = deviceId;
+    this.settings.lastTarget = deviceId;
+    await store.set('settings', this.userSettings);
   }
 
   #newPool() {
@@ -117,6 +155,7 @@ export class Engine {
         if (env) {
           await this.#onSignal(deviceId, env).catch((e) => {
             this.lastIssue.set(deviceId, `handshake error: ${e.message}`);
+            this.telemetry.error('signal.error', { 'peer.id': short(deviceId), 'error.message': e.message });
             this.links.get(deviceId)?.close('handshake error');
           });
         }
@@ -157,19 +196,24 @@ export class Engine {
       identity: this.identity,
       pair,
       role,
+      iceServers: iceServersFrom(this.settings.stunServers),
       onReady: () => {
         if (this.links.get(pair.deviceId) !== link) return link.close('stale');
         const p = this.pendingOffers.get(pair.deviceId);
         if (p) { clearTimeout(p.timer); this.pendingOffers.delete(pair.deviceId); }
         this.#setStatus(pair.deviceId, 'connected');
         this.lastIssue.delete(pair.deviceId);
+        this.telemetry.info('peer.connected', { 'peer.id': short(pair.deviceId), 'peer.role': role, duration_ms: Date.now() - link.startedAt });
         // Handshake done: stop using relays for this device.
         this.#unlisten(pair.deviceId);
       },
       onMessage: (m) => this.#onPeerMessage(pair.deviceId, m).catch((e) => console.warn('peer message error', e.message)),
       onClose: (_l, reason) => {
         if (this.links.get(pair.deviceId) !== link) return;
-        if (!['replaced', 'unpaired', 'stale'].includes(reason)) this.lastIssue.set(pair.deviceId, reason);
+        if (!['replaced', 'unpaired', 'stale'].includes(reason)) {
+          this.lastIssue.set(pair.deviceId, reason);
+          this.telemetry.warn('peer.closed', { 'peer.id': short(pair.deviceId), reason });
+        }
         const wasConnected = this.status.get(pair.deviceId) === 'connected';
         this.links.delete(pair.deviceId);
         this.#setStatus(pair.deviceId, 'offline');
@@ -179,6 +223,7 @@ export class Engine {
         if (wasConnected) setTimeout(() => this.connect(pair.deviceId).catch(() => {}), 2000 + Math.random() * 4000);
       },
     });
+    link.startedAt = Date.now();
     this.links.set(pair.deviceId, link);
     return link;
   }
@@ -228,12 +273,23 @@ export class Engine {
           break;
         }
         const pair = this.pairs.get(deviceId);
-        const sensitive = t.tabs.some((x) => x.cookies?.length || x.storage);
-        if (pair.autoOpen && !sensitive && this.#autoOpenAllowed(deviceId)) {
+        const withCookies = t.tabs.some((x) => x.cookies?.length);
+        const withStorage = t.tabs.some((x) => x.storage);
+        const sensitive = withCookies || withStorage;
+        // Policy is enforced on the receiving side too, whatever the sender allows.
+        if ((withCookies && !this.settings.allowCookieTransfer) || (withStorage && !this.settings.allowStorageTransfer)) {
+          this.#blocked(withCookies && !this.settings.allowCookieTransfer ? 'allowCookieTransfer' : 'allowStorageTransfer');
+          await link.send({ type: 'transfer.ack', id: t.id, status: 'blocked' });
+          await this.ops('notify', { title: `Blocked sign-in data from ${pair.name}`, message: 'Receiving cookies/site storage is turned off on this device.' });
+          break;
+        }
+        this.telemetry.info('transfer.received', { 'peer.id': short(deviceId), tabs: t.tabs.length, with_cookies: withCookies, with_storage: withStorage });
+        if (pair.autoOpen && this.settings.allowAutoOpen && !sensitive && this.#autoOpenAllowed(deviceId)) {
           // Trusted device + plain tabs: open right away. Sign-in data never auto-applies.
           const r = await this.ops('applyTransfer', { tabs: t.tabs });
           await this.#remember(deviceId, t.tabs);
           await link.send({ type: 'transfer.ack', id: t.id, status: 'accepted' });
+          this.telemetry.info('transfer.resolved', { status: 'accepted', auto_opened: true, tabs: r.opened });
           await this.ops('notify', { title: `Opened ${r.opened} tab(s) from ${pair.name}`, message: 'Auto-open is on for this device. Turn it off in Lokas.' });
           break;
         }
@@ -248,6 +304,11 @@ export class Engine {
         break;
       }
       case 'note': {
+        if (!this.settings.allowNotes) {
+          this.#blocked('allowNotes');
+          await link.send({ type: 'transfer.ack', id: String(m.id).slice(0, 64), status: 'blocked' });
+          break;
+        }
         const n = validateNote(m);
         const fromDevice = [...this.incoming.values()].filter((x) => x.from === deviceId).length;
         if (!n || this.incoming.has(n.id) || fromDevice >= 10) {
@@ -261,13 +322,17 @@ export class Engine {
         this.incoming.set(n.id, entry);
         await this.#badge();
         await link.send({ type: 'transfer.ack', id: n.id, status: 'delivered' });
+        this.telemetry.info('note.received', { 'peer.id': short(deviceId) });
         // No preview in the notification: notes may hold sensitive text.
         await this.ops('notify', { title: `${pair.name} sent you a note`, message: 'Open Narada to read it.' });
         break;
       }
       case 'transfer.ack': {
         const o = this.outgoing.find((x) => x.id === m.id && x.to === deviceId);
-        if (o && typeof m.status === 'string') o.status = m.status.slice(0, 32);
+        if (o && typeof m.status === 'string') {
+          o.status = m.status.slice(0, 32);
+          this.telemetry.info('transfer.ack', { 'peer.id': short(deviceId), kind: o.kind ?? 'tabs', status: o.status });
+        }
         break;
       }
       default:
@@ -311,6 +376,7 @@ export class Engine {
     if (!t) return null;
     clearTimeout(t.timer);
     this.incoming.delete(id);
+    this.telemetry.info('transfer.resolved', { kind: t.kind, status });
     await this.#badge();
     this.links.get(t.from)?.send({ type: 'transfer.ack', id, status }).catch(() => {});
     return t;
@@ -326,10 +392,17 @@ export class Engine {
       case 'getState': return this.#state();
       case 'pairStart':
       case 'pairJoin': {
+        if (!this.settings.allowPairing) throw new Error(`Pairing new devices is off. ${this.#blocked('allowPairing')}`);
         this.pairing?.cancel();
         this.pairing = new PairingSession({
           identity: this.identity, name: this.identity.name, pool: this.pool, nostrKey: this.nostrKey, sid: this.sid,
+          onUpdate: () => {
+            const st = this.pairing?.state;
+            if (st === 'verify') this.telemetry.info('pair.verify', {});
+            if (st === 'failed') this.telemetry.warn('pair.failed', { reason: this.pairing.error });
+          },
         });
+        this.telemetry.info('pair.started', { 'peer.role': cmd === 'pairStart' ? 'initiator' : 'joiner' });
         if (cmd === 'pairStart') await this.pairing.start();
         else await this.pairing.join(a.code);
         return this.pairing.view();
@@ -340,6 +413,7 @@ export class Engine {
         this.pairs.set(rec.deviceId, rec);
         await store.set('pair:' + rec.deviceId, rec);
         this.#setStatus(rec.deviceId, 'offline');
+        this.telemetry.info('pair.completed', { 'peer.id': short(rec.deviceId), pairs: this.pairs.size });
         await this.#listen(rec.deviceId);
         this.connect(rec.deviceId).catch(() => {});
         return true;
@@ -358,7 +432,7 @@ export class Engine {
         this.status.delete(a.deviceId);
         this.remoteTabs.delete(a.deviceId);
         this.autoOpenLog.delete(a.deviceId);
-        if (this.settings.lastTarget === a.deviceId) this.settings.lastTarget = null;
+        if (this.settings.lastTarget === a.deviceId) await this.#saveLastTarget(null);
         await store.del('pair:' + a.deviceId);
         this.#devicesChanged();
         return true;
@@ -369,12 +443,16 @@ export class Engine {
       case 'sendTransfer': {
         const t = validateTransfer({ id: newId(), tabs: a.tabs });
         if (!t) throw new Error('Nothing valid to send');
+        const withCookies = t.tabs.some((x) => x.cookies?.length);
+        const withStorage = t.tabs.some((x) => x.storage);
+        if (withCookies && !this.settings.allowCookieTransfer) throw new Error(`Sending cookies is off. ${this.#blocked('allowCookieTransfer')}`);
+        if (withStorage && !this.settings.allowStorageTransfer) throw new Error(`Sending site storage is off. ${this.#blocked('allowStorageTransfer')}`);
         await this.#link(a.deviceId).send({ type: 'transfer', ...t });
         this.outgoing.unshift({ id: t.id, to: a.deviceId, count: t.tabs.length, at: Date.now(), status: 'sent' });
+        this.telemetry.info('transfer.sent', { 'peer.id': short(a.deviceId), tabs: t.tabs.length, with_cookies: withCookies, with_storage: withStorage });
         this.outgoing.length = Math.min(this.outgoing.length, 20);
         if (this.settings.lastTarget !== a.deviceId) {
-          this.settings.lastTarget = a.deviceId;
-          await store.set('settings', this.settings);
+          await this.#saveLastTarget(a.deviceId);
           this.#devicesChanged();
         }
         return { id: t.id, count: t.tabs.length };
@@ -390,11 +468,13 @@ export class Engine {
         return { ...r, name: this.pairs.get(deviceId).name };
       }
       case 'sendNote': {
+        if (!this.settings.allowNotes) throw new Error(`Notes are off. ${this.#blocked('allowNotes')}`);
         const text = cleanNoteText(a.text);
         if (!text) throw new Error(`Write something to send (up to ${LIMITS.noteLength / 1024} KB).`);
         const id = newId();
         await this.#link(a.deviceId).send({ type: 'note', id, text });
         this.outgoing.unshift({ id, kind: 'note', to: a.deviceId, count: 1, at: Date.now(), status: 'sent' });
+        this.telemetry.info('note.sent', { 'peer.id': short(a.deviceId) });
         this.outgoing.length = Math.min(this.outgoing.length, 20);
         return { id };
       }
@@ -438,32 +518,54 @@ export class Engine {
         await this.#resolveIncoming(a.id, 'rejected');
         return true;
       case 'setSettings': return this.#setSettings(a);
+      case 'reloadConfig':
+        // Organization policy changed (storage.managed onChanged).
+        this.managed = (await this.ops('getManaged').catch(() => ({}))) ?? {};
+        this.#applyConfig();
+        this.telemetry.info('policy.reloaded', { policy: Object.keys(this.managed).length ? 'managed' : 'none' });
+        return true;
+      case 'flushTelemetry':
+        return this.telemetry.flush();
       default:
         throw new Error('Unknown command');
     }
   }
 
   async #setSettings(a) {
-    if (a.name !== undefined) {
-      this.identity.name = cleanName(a.name);
+    const { name, ...rest } = a;
+    if (name !== undefined) {
+      this.identity.name = cleanName(name);
       await store.set('identity', this.identity);
     }
-    if (a.shareTabList !== undefined) this.settings.shareTabList = !!a.shareTabList;
-    if (a.keepHistory !== undefined) {
-      this.settings.keepHistory = !!a.keepHistory;
-      if (!this.settings.keepHistory) { this.history = []; await store.del('history'); }
+    // Policy-controlled keys are skipped (the popup also disables them).
+    const patch = {};
+    const skipped = [];
+    for (const [k, v] of Object.entries(rest)) {
+      if (k === 'telemetry' && v && typeof v === 'object') {
+        patch.telemetry = {};
+        for (const [tk, tv] of Object.entries(v)) {
+          if (this.locked.has(`telemetry.${tk}`)) skipped.push(`telemetry.${tk}`); else patch.telemetry[tk] = tv;
+        }
+      } else if (this.locked.has(k)) skipped.push(k);
+      else patch[k] = v;
     }
-    if (a.relays !== undefined) {
-      const relays = [...new Set((a.relays || []).map(safeRelayUrl).filter(Boolean))].slice(0, LIMITS.relays);
-      if (!relays.length) throw new Error('At least one wss:// relay is required');
-      this.settings.relays = relays;
-      // Rebuild the pool and re-subscribe every pair's topics.
-      for (const id of [...this.topics.keys()]) this.#unlisten(id);
-      this.#newPool();
-      for (const id of this.pairs.keys()) this.#listen(id);
+    // Masked header values ("••••") mean "keep the current secret".
+    const oldHeaders = this.userSettings.telemetry?.headers ?? {};
+    if (patch.telemetry?.headers) {
+      for (const [k, v] of Object.entries(patch.telemetry.headers)) {
+        if (v === '••••') { if (oldHeaders[k] !== undefined) patch.telemetry.headers[k] = oldHeaders[k]; else delete patch.telemetry.headers[k]; }
+      }
     }
-    await store.set('settings', this.settings);
-    return true;
+    const { values, errors } = sanitize(patch);
+    if (errors.length) throw new Error(`Invalid setting: ${errors.join(', ')}`);
+    this.userSettings = {
+      ...this.userSettings, ...values,
+      telemetry: { ...(this.userSettings.telemetry ?? {}), ...(values.telemetry ?? {}) },
+    };
+    await store.set('settings', this.userSettings);
+    this.#applyConfig();
+    this.telemetry.info('settings.changed', { setting: Object.keys(values).join(',') });
+    return { skipped };
   }
 
   #state() {
@@ -471,7 +573,14 @@ export class Engine {
       device: { id: this.identity.deviceId, name: this.identity.name },
       webrtc: this.webrtc,
       relays: this.pool.status(),
-      settings: this.settings,
+      // Header values may hold tokens: the popup only ever sees masked values.
+      settings: {
+        ...this.settings,
+        telemetry: { ...this.settings.telemetry, headers: Object.fromEntries(Object.keys(this.settings.telemetry.headers ?? {}).map((k) => [k, '••••'])) },
+      },
+      locked: [...this.locked],
+      managed: Object.keys(this.managed).length > 0,
+      telemetryFailures: this.telemetry.failures,
       pairing: this.pairing?.view() ?? null,
       devices: this.#deviceList().map((d) => ({
         ...d,

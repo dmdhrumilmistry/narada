@@ -17,10 +17,10 @@ function checkSdp(sdp) {
 }
 
 export class PeerLink {
-  constructor({ identity, pair, role, onReady, onMessage, onClose }) {
+  constructor({ identity, pair, role, iceServers = ICE_SERVERS, onReady, onMessage, onClose }) {
     Object.assign(this, { identity, pair, role, onReady, onMessage, onClose });
     this.state = 'connecting';
-    this.pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, bundlePolicy: 'max-bundle' });
+    this.pc = new RTCPeerConnection({ iceServers, bundlePolicy: 'max-bundle' });
     this.pc.onconnectionstatechange = () => {
       if (['failed', 'closed'].includes(this.pc.connectionState)) this.close('connection ' + this.pc.connectionState);
     };
