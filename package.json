@@ -1,5 +1,5 @@
 {
-  "name": "websync",
+  "name": "narada",
   "version": "0.1.0",
   "description": "P2P browser tab/session sync over WebRTC with Nostr signaling",
   "directories": {
@@ -10,7 +10,10 @@
     "build": "node build.mjs",
     "test": "node --test test/*.test.js",
     "icons": "node scripts/make-icons.mjs src/icons",
-    "package": "npm run build && cd dist/chrome && zip -qr ../websync-chrome.zip . && cd ../firefox && zip -qr ../websync-firefox.zip ."
+    "package": "npm run build && cd dist/chromium && zip -qr ../narada-chromium.zip . && cd ../firefox && zip -qr ../narada-firefox.zip .",
+    "e2e:prepare": "npm run build && node test/e2e/prepare.mjs",
+    "e2e:chromium": "node test/e2e/chromium-to-chromium.cjs",
+    "e2e:firefox": "node test/e2e/chromium-to-firefox.cjs"
   },
   "repository": {
     "type": "git",
@@ -22,7 +25,11 @@
   },
   "homepage": "https://github.com/dmdhrumilmistry/websync#readme",
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "@fontsource/bangers": "^5.3.0",
+    "@fontsource/comic-neue": "^5.3.0",
+    "esbuild": "^0.28.2",
+    "playwright": "1.63.0",
+    "selenium-webdriver": "^4.0.0"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0"

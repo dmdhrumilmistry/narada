@@ -73,3 +73,25 @@ test('plaintext before auth completes is rejected', async () => {
   await B.receive(new Uint8Array(64));
   await until(() => closed.b);
 });
+
+test('peer auth1 arriving while our own start() is still running is handled', async () => {
+  const [ia, ib] = await Promise.all([identity('a'), identity('b')]);
+  const pairKey = await hkdfKey(rand(32));
+  let A, B;
+  const fromB = [];
+  B = new SecureChannel({
+    identity: ib, pair: { deviceId: ia.deviceId, pub: ia.pub, pairKey }, role: 'answerer', localFp: 'B', remoteFp: 'A',
+    send: (d) => { fromB.push(d); if (A?.eph) setTimeout(() => A.receive(d), 0); },
+  });
+  A = new SecureChannel({
+    identity: ia, pair: { deviceId: ib.deviceId, pub: ib.pub, pairKey }, role: 'offerer', localFp: 'A', remoteFp: 'B',
+    send: (d) => setTimeout(() => B.receive(d), 0),
+  });
+  await B.start();
+  // Same order as PeerLink: start() is called, then a message lands before it resolves.
+  const started = A.start();
+  A.receive(fromB[0]);
+  await started;
+  await until(() => A.ready && B.ready);
+  assert.equal(A.closed, false);
+});

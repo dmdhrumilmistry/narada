@@ -1,6 +1,6 @@
 // Minimal IndexedDB key/value store. IndexedDB (unlike storage.local) can hold
 // structured-cloned non-extractable CryptoKeys, so raw key bytes never persist.
-const DB = 'websync';
+const DB = 'narada';
 const STORE = 'kv';
 let dbp;
 

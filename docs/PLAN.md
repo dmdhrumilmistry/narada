@@ -1,6 +1,10 @@
-# WebSync — Design & Implementation Plan
+# Narada: Design & Implementation Plan
 
-Peer-to-peer browser sync for Chromium and Firefox. Devices find each other
+> **Why "Narada"?** In the Bhagavata Purana, Narada Muni is the divine sage who wanders
+> between all the lokas (worlds) carrying news, veena in hand, chanting
+> "Narayan Narayan". Narada the extension carries your tabs between your browsers.
+
+Peer-to-peer browser sync for every Chromium-based and Firefox-based browser. Devices find each other
 through public Nostr relays (signaling only) and then talk directly over a
 WebRTC data channel. NAT traversal uses only Google's public STUN servers.
 There is **no TURN server and no central server** in the data path once the
@@ -39,6 +43,10 @@ TURN fallback (it would put a server in the data path), mobile browsers.
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+On Chromium forks that lack `chrome.offscreen`, the service worker hosts the
+same engine page in a minimized extension window instead. A Web Lock
+(`navigator.locks`) guarantees that exactly one engine instance runs.
+
 Why the split: Chromium service workers have no `RTCPeerConnection`, so the
 engine runs in an offscreen document (reason `WEB_RTC`). Offscreen documents
 cannot use `tabs`/`cookies`, so those stay in the service worker ("ops") and
@@ -62,7 +70,7 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 | `src/background/ops.js` | Collect/apply tabs, cookies and storage |
 | `src/background/chrome-bg.js`, `firefox-bg.js` | Entry points and message routing |
 | `src/popup/` | UI |
-| `build.mjs` | esbuild bundle and per-browser manifests → `dist/chrome`, `dist/firefox` |
+| `build.mjs` | esbuild bundle and per-browser manifests → `dist/chromium`, `dist/firefox` |
 
 ## 3. Protocols
 
@@ -73,13 +81,13 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 
 ### 3.2 Pairing (one-time code + SAS)
 1. Device A creates a random 256-bit secret `S` and shows the code
-   `WS1-<base64url(S)>`. It expires after 10 min and works only once.
+   `NRD1-<base64url(S)>`. It expires after 10 min and works only once.
 2. Both sides derive from `S` with HKDF: a rendezvous topic (a Nostr `#p` tag
    value) and an AES-256-GCM key. Relays only see random hex and ciphertext.
 3. B → A `hello {pubB, nameB, nonceB}`
    A → B `welcome {pubA, nameA, nonceA, sigA(T)}`
    B → A `confirm {sigB(T)}`
-   where `T = SHA-256("websync-pair-v1" ‖ pubA ‖ pubB ‖ nonceA ‖ nonceB)`.
+   where `T = SHA-256("narada-pair-v1" ‖ pubA ‖ pubB ‖ nonceA ‖ nonceB)`.
 4. Both show a 6-digit **Short Authentication String** derived from `T`. The
    user checks that the two devices show the same number. Only then is the pair
    saved: the peer's public key is pinned, and the pair key is
@@ -106,7 +114,7 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 
 ### 3.4 Secure channel (defense in depth on top of DTLS)
 1. Each side sends `auth1 {ephemeral ECDH P-256 pub, nonce}`.
-2. `H = SHA-256("websync-sess-v1" ‖ offerer(id,eph,nonce) ‖ answerer(id,eph,nonce) ‖ offererDTLSfp ‖ answererDTLSfp)`.
+2. `H = SHA-256("narada-sess-v1" ‖ offerer(id,eph,nonce) ‖ answerer(id,eph,nonce) ‖ offererDTLSfp ‖ answererDTLSfp)`.
    Including the DTLS fingerprints from the SDP *binds the app-layer handshake
    to the transport* (channel binding).
 3. Each side sends `auth2 {ECDSA_identity(H)}`, which is checked against the
@@ -129,6 +137,26 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 * `transfer.ack {id, status}`.
 * There is deliberately **no "pull cookies" request**. Credentials only move
   when the sending user explicitly pushes them.
+
+### Browser support matrix
+
+| Browser family | Build | Engine host | Verified |
+|---|---|---|---|
+| Chrome, Edge, Brave, Opera, Vivaldi, Arc… (Chromium ≥ 110) | `dist/chromium` (MV3) | offscreen document; minimized window if the offscreen API is missing | Chromium ↔ Chromium E2E, plus the no-offscreen fallback |
+| Firefox, Firefox ESR, LibreWolf, Waterfox, Floorp, Zen… (Gecko ≥ 115) | `dist/firefox` (MV2) | persistent background page | Chromium ↔ Firefox ESR E2E; `web-ext lint` 0 errors |
+| Safari | not supported | no WebRTC in Safari extension backgrounds | n/a |
+
+If WebRTC is disabled (for example LibreWolf with `media.peerconnection.enabled=false`),
+the engine detects it and the UI explains how to turn it back on.
+
+### UI
+The popup has a toned-down comic-book look: ink outlines, halftone paper, speech
+bubbles, and small, quick sound-effect bursts, with a cartoon Narada mascot. The
+sections are Bhejo, Lokas, Sandesh and Yantra. A single sticky action button spells
+out the action, pairing takes two steps with large SAS digits, and the inbox lists
+which sites accepting would sign you in to. The fonts are Bangers and Comic Neue
+(SIL OFL, bundled). Light and dark themes are included, and `prefers-reduced-motion`
+is respected.
 
 ## 4. Security practices
 
@@ -160,10 +188,12 @@ WebRTC), so Firefox uses an MV2 persistent background page that hosts both.
 `wss://relay.nostr.band`, `wss://nostr.mom` (editable in Settings).
 
 ## 6. Build, test, release
-* `npm run build` produces `dist/chrome` (MV3) and `dist/firefox` (MV2).
+* `npm run build` produces `dist/chromium` (MV3) and `dist/firefox` (MV2).
+* `npm run e2e:prepare && npm run e2e:chromium` / `npm run e2e:firefox` run real
+  browser-to-browser tests over the public relays (see README).
 * `npm test` runs Node unit tests for crypto, pairing transcript/SAS, the secure
   channel (round-trip, replay, tamper, chunking) and validators.
-* Load unpacked: `chrome://extensions` → Developer mode → Load unpacked → `dist/chrome`;
+* Load unpacked: `chrome://extensions` → Developer mode → Load unpacked → `dist/chromium`;
   Firefox: `about:debugging` → Load Temporary Add-on → `dist/firefox/manifest.json`.
 
 ## 7. Implementation order

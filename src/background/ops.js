@@ -7,7 +7,7 @@ const SENSITIVE_PERMS = { permissions: ['cookies'], origins: ['<all_urls>'] };
 
 async function requireSensitivePerms() {
   if (!(await api.permissions.contains(SENSITIVE_PERMS))) {
-    throw new Error('Cookie/site-data access has not been granted. Allow it in the WebSync popup first.');
+    throw new Error('Cookie/site-data access has not been granted. Allow it in the Narada popup first.');
   }
 }
 

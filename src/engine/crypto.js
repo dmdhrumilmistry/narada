@@ -133,7 +133,7 @@ export async function ecdh(privateKey, peerPubRaw) {
 
 // 6-digit short authentication string from a transcript hash.
 export async function sas(transcript) {
-  const h = await sha256(concat(enc('websync-sas'), transcript));
+  const h = await sha256(concat(enc('narada-sas'), transcript));
   const n = new DataView(h.buffer).getUint32(0) % 1_000_000;
   return n.toString().padStart(6, '0').replace(/(\d{3})(\d{3})/, '$1 $2');
 }
