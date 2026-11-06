@@ -17,13 +17,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dmdhrumilmistry/websync.git"
+    "url": "git+https://github.com/dmdhrumilmistry/narada.git"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/dmdhrumilmistry/websync/issues"
+    "url": "https://github.com/dmdhrumilmistry/narada/issues"
   },
-  "homepage": "https://github.com/dmdhrumilmistry/websync#readme",
+  "homepage": "https://github.com/dmdhrumilmistry/narada#readme",
   "devDependencies": {
     "@fontsource/bangers": "^5.3.0",
     "@fontsource/comic-neue": "^5.3.0",

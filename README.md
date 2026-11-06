@@ -108,6 +108,14 @@ Full design: [`docs/PLAN.md`](docs/PLAN.md).
 * Site storage covers `localStorage` and `sessionStorage`. IndexedDB and caches are not synced.
 * Firefox may close the popup while it shows a permission prompt. Reopen it and repeat the action.
 
+## Releasing
+
+Releases are automated: run **Actions → Release** (pick patch/minor/major), or push a
+`vX.Y.Z` tag. A release tests the code, publishes a GitHub Release with
+provenance-attested zips, and submits to the **Chrome Web Store** and **Firefox Add-ons**.
+For one-time store setup, see [`docs/RELEASING.md`](docs/RELEASING.md).
+Privacy policy: [`PRIVACY.md`](PRIVACY.md).
+
 ## Tests
 
 CI (`.github/workflows/ci.yml`) runs on every push and pull request:

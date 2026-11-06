@@ -29,7 +29,7 @@ const manifests = {
     minimum_chrome_version: '116',
     background: { service_worker: 'background.js' },
     action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'storage', 'notifications', 'scripting', 'offscreen'],
+    permissions: ['tabs', 'notifications', 'scripting', 'offscreen'],
     optional_permissions: ['cookies'],
     optional_host_permissions: ['<all_urls>'],
     content_security_policy: { extension_pages: CSP },
@@ -39,7 +39,7 @@ const manifests = {
     ...common,
     background: { scripts: ['background.js'], persistent: true },
     browser_action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'storage', 'notifications', 'scripting'],
+    permissions: ['tabs', 'notifications', 'scripting'],
     optional_permissions: ['cookies', '<all_urls>'],
     content_security_policy: CSP,
     // Nothing is collected by or sent to the developer; relays only see encrypted handshakes.
