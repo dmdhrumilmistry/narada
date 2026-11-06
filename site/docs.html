@@ -47,6 +47,17 @@
         which sites you'd be signed in to. Press <em>Accept</em> to open them, or <em>Decline</em>. Requests expire after 5 minutes.</li>
     </ol>
     <p>Bonus: in <em>Lokas</em>, <em>Show tabs</em> lists what's open on a connected device, so you can open any of those tabs here.</p>
+    <h3 id="shortcuts">Shortcuts &amp; quick send</h3>
+    <ul>
+      <li><strong>Right-click</strong> any page or link → <em>Send to device with Narada</em> → pick a device. If it's offline, Narada tries to connect first.</li>
+      <li><code>Alt+Shift+S</code> sends the current tab to the device you used last. <code>Alt+Shift+Y</code> opens Narada.
+        You can change the keys at <code>chrome://extensions/shortcuts</code>, or in Firefox under Add-ons → ⚙ → Manage Extension Shortcuts.</li>
+      <li>Quick sends carry just the tab, never sign-in data. To send cookies or site storage, use the popup.</li>
+    </ul>
+    <h3 id="trusted">Trusted devices</h3>
+    <p>In <em>Lokas</em>, open a device's <em>Options</em> to give it a local name, or switch on <strong>Open its tabs automatically</strong>.
+      Plain tabs from that device then open straight away, up to 5 sends a minute. Anything carrying cookies or site storage
+      <strong>still waits for your approval</strong>.</p>
     <div class="shots">
       <img src="screenshots/devices-light.png" alt="Lokas: a connected device and its open tabs" width="400" height="590">
       <img src="screenshots/send-dark.png" alt="Bhejo in dark mode" width="400" height="590">
@@ -87,7 +98,7 @@
         <tr><td>Someone in the middle</td><td>Pinned device keys, mutual signatures, and a handshake bound to the WebRTC (DTLS) fingerprints.</td></tr>
         <tr><td>Stolen session keys</td><td>Fresh ECDH keys for every connection, with separate keys for each direction.</td></tr>
         <tr><td>Malicious or buggy peer</td><td>Strict input checks: only http(s) links; cookies must belong to the tab's own site; storage must match its origin; size limits apply.</td></tr>
-        <tr><td>Silent sign-in import</td><td>Every transfer needs your Accept. There's no way for a device to <em>request</em> your cookies, so they only travel when you send them.</td></tr>
+        <tr><td>Silent sign-in import</td><td>Every transfer with sign-in data needs your Accept, even from trusted devices. There's no way for a device to <em>request</em> your cookies, so they only travel when you send them.</td></tr>
         <tr><td>Keys copied off disk</td><td>Keys are non-extractable WebCrypto keys. Received cookies are never stored by Narada itself.</td></tr>
       </tbody>
     </table>
@@ -100,6 +111,7 @@
         <tr><td><code>scripting</code></td><td>Read or restore a tab's site storage, only when you ask.</td></tr>
         <tr><td><code>notifications</code></td><td>Tell you that tabs are waiting for approval.</td></tr>
         <tr><td><code>offscreen</code> (Chromium)</td><td>Run the WebRTC connection in the background.</td></tr>
+        <tr><td><code>contextMenus</code> / <code>menus</code></td><td>The "Send to device with Narada" right-click item.</td></tr>
         <tr><td><code>cookies</code> + all sites <em>(optional)</em></td><td>Requested only the first time you send or accept sign-in data.</td></tr>
       </tbody>
     </table>

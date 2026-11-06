@@ -6,7 +6,7 @@ const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { Builder } = require('selenium-webdriver');
 const firefox = require('selenium-webdriver/firefox');
-const { tmpDir, startSite, launchChromium, pairConnectTransfer, check, sleep } = require('./lib.cjs');
+const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, check, sleep } = require('./lib.cjs');
 
 const UUID = '11111111-2222-4333-8444-555555555555';
 
@@ -68,6 +68,12 @@ async function launchFirefox() {
     await sleep(2000);
     const titles = await F.exec('return (await browser.tabs.query({})).map((t) => t.title);');
     check(titles.includes('ls=v1'), 'localStorage restored in Firefox', titles);
+    await featureChecks({
+      sender: C,
+      receiver: F,
+      receiverTabUrls: () => F.exec('return (await browser.tabs.query({})).map((t) => t.url);'),
+      senderTabIds: async () => (await C.page.evaluate(() => chrome.tabs.query({ url: 'http://localhost/*' }))).map((t) => t.id).slice(0, 1),
+    });
     console.log('PASS chromium-to-firefox');
   } finally {
     await F.driver.quit();

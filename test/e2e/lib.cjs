@@ -100,4 +100,29 @@ async function pairConnectTransfer({ sender, receiver, openSenderTab, cookiesOf 
   check(remote.tabs.some((t) => t.url.startsWith('http://localhost')), 'receiver can list sender tabs');
 }
 
-module.exports = { sleep, tmpDir, check, waitFor, startSite, launchChromium, pairConnectTransfer };
+// New-feature checks: trusted auto-open, sign-in data still gated, quick send to last device, rename.
+async function featureChecks({ sender, receiver, receiverTabUrls, senderTabIds }) {
+  console.log('checking trusted-device auto-open + quick send…');
+  const senderId = (await sender.call('getState')).device.id;
+  const receiverId = (await receiver.call('getState')).device.id;
+  await receiver.call('setDeviceOptions', { deviceId: senderId, autoOpen: true, name: 'Office laptop' });
+  const renamed = (await receiver.call('getState')).devices.find((d) => d.deviceId === senderId);
+  check(renamed.name === 'Office laptop' && renamed.autoOpen, 'device renamed locally and marked trusted', renamed);
+
+  // No deviceId: quick send goes to the last device used (the receiver).
+  const q = await sender.call('quickSend', { tabs: [{ url: 'http://localhost:8765/?auto=1', title: 'Auto' }] });
+  check(q.count === 1, 'quick send to last-used device', q);
+  await waitFor('auto-opened tab on receiver', async () => (await receiverTabUrls()).some((u) => u.includes('auto=1')), 15_000);
+  check((await receiver.call('getState')).incoming.length === 0, 'trusted plain tab opened without an approval prompt');
+  await waitFor('accepted ack', async () => (await sender.call('getState')).outgoing[0]?.status === 'accepted', 10_000);
+  check(true, 'sender got "accepted" for the auto-opened tab');
+
+  // Sign-in data from a trusted device must still wait for approval.
+  await sender.call('sendTabs', { deviceId: receiverId, tabIds: await senderTabIds(), cookies: true, storage: false });
+  const pending = await waitFor('sign-in transfer queued', async () => (await receiver.call('getState')).incoming[0], 15_000);
+  check(pending.tabs[0].cookieCount > 0, 'cookies from a trusted device still need approval');
+  await receiver.call('rejectTransfer', { id: pending.id });
+}
+
+module.exports = {
+  featureChecks, sleep, tmpDir, check, waitFor, startSite, launchChromium, pairConnectTransfer };

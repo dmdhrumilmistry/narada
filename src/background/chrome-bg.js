@@ -4,6 +4,7 @@
 // extension window hosting the same page. This worker keeps the privileged APIs.
 import { api } from '../shared/api.js';
 import { callOps, handlePopupCommand, respond } from './ops.js';
+import { setupQuickSend } from './quick.js';
 
 const HOST = 'offscreen.html';
 const HOST_URL = api.runtime.getURL(HOST);
@@ -61,6 +62,8 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   return false;
 });
+
+setupQuickSend(engineCall);
 
 api.runtime.onStartup.addListener(() => ensureEngineHost());
 api.runtime.onInstalled.addListener(() => ensureEngineHost());

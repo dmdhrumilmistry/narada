@@ -27,6 +27,7 @@ text. Fill these fields once in the dashboard. Later releases only update the pa
 | `scripting` | Only when the user opts in: read localStorage/sessionStorage of the selected tab to send, or restore it in a received tab. |
 | `notifications` | Notify the user that a paired device sent tabs that are waiting for approval. |
 | `offscreen` | Host the WebRTC peer connection, which service workers cannot create. |
+| `contextMenus` | Add a "Send to device with Narada" item to the right-click menu for pages and links. |
 | `cookies` (optional) | Only when the user opts in: read cookies for the selected tabs, and set received cookies after the user approves. |
 | Host permission `<all_urls>` (optional) | Needed by the cookie and scripting steps above, only for tabs the user selects. Requested at runtime, not at install. |
 | Remote code | **No.** All code is bundled in the package. |

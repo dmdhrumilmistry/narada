@@ -32,6 +32,7 @@ export class Engine {
     this.outgoing = []; // recent sent transfers (metadata only)
     this.remoteTabs = new Map(); // deviceId -> { at, tabs }
     this.lastIssue = new Map(); // deviceId -> last connection problem (shown in UI)
+    this.autoOpenLog = new Map(); // deviceId -> timestamps of auto-opened transfers (rate limit)
     this.sid = hex(rand(8));
     this.nostrKey = newNostrKey(); // ephemeral, never persisted
   }
@@ -48,7 +49,7 @@ export class Engine {
     this.settings = { relays: DEFAULT_RELAYS, shareTabList: true, ...(await store.get('settings')) };
     for (const p of await store.listPrefix('pair:')) this.pairs.set(p.deviceId, p);
     this.#newPool();
-    for (const id of this.pairs.keys()) { this.status.set(id, 'offline'); this.#listen(id); }
+    for (const id of this.pairs.keys()) { this.#setStatus(id, 'offline'); this.#listen(id); }
     setInterval(() => this.#rotateTopics(), 10 * 60 * 1000);
     for (const id of this.pairs.keys()) this.connect(id).catch(() => {});
   }
@@ -56,6 +57,26 @@ export class Engine {
   #newPool() {
     this.pool?.close();
     this.pool = new RelayPool(this.settings.relays, (ev) => this.#onEvent(ev));
+  }
+
+  // ---------- device list → background (context menus) ----------
+  #setStatus(deviceId, status) {
+    this.status.set(deviceId, status);
+    this.#devicesChanged();
+  }
+
+  #devicesChanged() {
+    clearTimeout(this.devicesTimer);
+    this.devicesTimer = setTimeout(() => {
+      this.ops('devices', { devices: this.#deviceList(), lastTarget: this.settings.lastTarget ?? null }).catch(() => {});
+    }, 300);
+  }
+
+  #deviceList() {
+    return [...this.pairs.values()].map((p) => ({
+      deviceId: p.deviceId, name: p.name, createdAt: p.createdAt, autoOpen: !!p.autoOpen,
+      status: this.status.get(p.deviceId) ?? 'offline',
+    }));
   }
 
   // ---------- signaling ----------
@@ -130,7 +151,7 @@ export class Engine {
 
   // ---------- connections ----------
   #newLink(pair, role) {
-    this.status.set(pair.deviceId, 'connecting');
+    this.#setStatus(pair.deviceId, 'connecting');
     const link = new PeerLink({
       identity: this.identity,
       pair,
@@ -139,7 +160,7 @@ export class Engine {
         if (this.links.get(pair.deviceId) !== link) return link.close('stale');
         const p = this.pendingOffers.get(pair.deviceId);
         if (p) { clearTimeout(p.timer); this.pendingOffers.delete(pair.deviceId); }
-        this.status.set(pair.deviceId, 'connected');
+        this.#setStatus(pair.deviceId, 'connected');
         this.lastIssue.delete(pair.deviceId);
         // Handshake done: stop using relays for this device.
         this.#unlisten(pair.deviceId);
@@ -150,7 +171,7 @@ export class Engine {
         if (!['replaced', 'unpaired', 'stale'].includes(reason)) this.lastIssue.set(pair.deviceId, reason);
         const wasConnected = this.status.get(pair.deviceId) === 'connected';
         this.links.delete(pair.deviceId);
-        this.status.set(pair.deviceId, 'offline');
+        this.#setStatus(pair.deviceId, 'offline');
         if (!this.pairs.has(pair.deviceId)) return;
         this.#listen(pair.deviceId);
         // Dropped connection: try once to re-establish (jittered to limit glare).
@@ -205,11 +226,19 @@ export class Engine {
           await link.send({ type: 'transfer.ack', id: String(m.id).slice(0, 64), status: 'invalid' });
           break;
         }
-        const entry = { ...t, from: deviceId, fromName: this.pairs.get(deviceId).name, at: Date.now() };
+        const pair = this.pairs.get(deviceId);
+        const sensitive = t.tabs.some((x) => x.cookies?.length || x.storage);
+        if (pair.autoOpen && !sensitive && this.#autoOpenAllowed(deviceId)) {
+          // Trusted device + plain tabs: open right away. Sign-in data never auto-applies.
+          const r = await this.ops('applyTransfer', { tabs: t.tabs });
+          await link.send({ type: 'transfer.ack', id: t.id, status: 'accepted' });
+          await this.ops('notify', { title: `Opened ${r.opened} tab(s) from ${pair.name}`, message: 'Auto-open is on for this device. Turn it off in Lokas.' });
+          break;
+        }
+        const entry = { ...t, from: deviceId, fromName: pair.name, at: Date.now() };
         entry.timer = setTimeout(() => this.#resolveIncoming(t.id, 'expired'), PENDING_TRANSFER_TTL_MS);
         this.incoming.set(t.id, entry);
         await this.#badge();
-        const sensitive = t.tabs.some((x) => x.cookies?.length || x.storage);
         await this.ops('notify', {
           title: `${entry.fromName} sent ${t.tabs.length} tab(s)`,
           message: sensitive ? 'Includes cookies/site data. Open Narada to review.' : 'Open Narada to review.',
@@ -223,6 +252,26 @@ export class Engine {
       }
       default:
         break; // unknown types are ignored (forward compatibility)
+    }
+  }
+
+  // At most 5 auto-opened transfers per device per minute; the rest wait for approval.
+  #autoOpenAllowed(deviceId) {
+    const now = Date.now();
+    const recent = (this.autoOpenLog.get(deviceId) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= 5) return false;
+    recent.push(now);
+    this.autoOpenLog.set(deviceId, recent);
+    return true;
+  }
+
+  async #waitConnected(deviceId, timeoutMs = 20_000) {
+    if (this.status.get(deviceId) !== 'connected') await this.connect(deviceId);
+    const end = Date.now() + timeoutMs;
+    while (this.status.get(deviceId) !== 'connected') {
+      if (Date.now() > end) throw new Error(`${this.pairs.get(deviceId)?.name ?? 'Device'} is offline. Open Narada on it and try again.`);
+      if (this.status.get(deviceId) === 'offline' && !this.links.has(deviceId)) await this.connect(deviceId).catch(() => {});
+      await new Promise((r) => setTimeout(r, 250));
     }
   }
 
@@ -259,7 +308,7 @@ export class Engine {
         this.pairing = null;
         this.pairs.set(rec.deviceId, rec);
         await store.set('pair:' + rec.deviceId, rec);
-        this.status.set(rec.deviceId, 'offline');
+        this.#setStatus(rec.deviceId, 'offline');
         await this.#listen(rec.deviceId);
         this.connect(rec.deviceId).catch(() => {});
         return true;
@@ -277,7 +326,10 @@ export class Engine {
         this.pairs.delete(a.deviceId);
         this.status.delete(a.deviceId);
         this.remoteTabs.delete(a.deviceId);
+        this.autoOpenLog.delete(a.deviceId);
+        if (this.settings.lastTarget === a.deviceId) this.settings.lastTarget = null;
         await store.del('pair:' + a.deviceId);
+        this.#devicesChanged();
         return true;
       }
       case 'requestTabs':
@@ -289,7 +341,31 @@ export class Engine {
         await this.#link(a.deviceId).send({ type: 'transfer', ...t });
         this.outgoing.unshift({ id: t.id, to: a.deviceId, count: t.tabs.length, at: Date.now(), status: 'sent' });
         this.outgoing.length = Math.min(this.outgoing.length, 20);
+        if (this.settings.lastTarget !== a.deviceId) {
+          this.settings.lastTarget = a.deviceId;
+          await store.set('settings', this.settings);
+          this.#devicesChanged();
+        }
         return { id: t.id, count: t.tabs.length };
+      }
+      case 'quickSend': {
+        // Right-click menu / keyboard shortcut: plain tabs only (never sign-in data).
+        const only = this.pairs.size === 1 ? [...this.pairs.keys()][0] : null;
+        const deviceId = a.deviceId ?? (this.pairs.has(this.settings.lastTarget) ? this.settings.lastTarget : only);
+        if (!deviceId || !this.pairs.has(deviceId)) throw new Error('Pick a device in Narada first (send once from the popup).');
+        const tabs = (a.tabs ?? []).map((x) => ({ url: x.url, title: x.title }));
+        await this.#waitConnected(deviceId);
+        const r = await this.command('sendTransfer', { deviceId, tabs });
+        return { ...r, name: this.pairs.get(deviceId).name };
+      }
+      case 'setDeviceOptions': {
+        const pair = this.pairs.get(a.deviceId);
+        if (!pair) throw new Error('Unknown device');
+        if (a.name !== undefined) pair.name = cleanName(a.name);
+        if (a.autoOpen !== undefined) pair.autoOpen = !!a.autoOpen;
+        await store.set('pair:' + pair.deviceId, pair);
+        this.#devicesChanged();
+        return true;
       }
       case 'acceptTransfer': {
         const t = this.incoming.get(a.id);
@@ -333,9 +409,9 @@ export class Engine {
       relays: this.pool.status(),
       settings: this.settings,
       pairing: this.pairing?.view() ?? null,
-      devices: [...this.pairs.values()].map((p) => ({
-        deviceId: p.deviceId, name: p.name, createdAt: p.createdAt, status: this.status.get(p.deviceId) ?? 'offline',
-        issue: this.lastIssue.get(p.deviceId) ?? null,
+      devices: this.#deviceList().map((d) => ({
+        ...d,
+        issue: this.lastIssue.get(d.deviceId) ?? null,
       })),
       // Summaries only: cookie and storage values never leave the engine except to be applied.
       incoming: [...this.incoming.values()].map((t) => ({
