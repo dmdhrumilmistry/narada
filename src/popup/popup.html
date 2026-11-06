@@ -2,27 +2,36 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>WebSync</title>
+  <title>Narada</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header>
-    <div>
-      <strong>WebSync</strong>
-      <span id="deviceName" class="muted"></span>
+  <header class="masthead">
+    <img src="assets/narada.svg" alt="" class="mascot" width="64" height="64">
+    <div class="title-block">
+      <h1>Narada</h1>
+      <p class="bubble" id="quip">Narayan Narayan! Your tabs travel across every loka.</p>
     </div>
-    <span id="relayStatus" class="muted small"></span>
   </header>
+  <div class="statusbar">
+    <span id="deviceName" class="chip"></span>
+    <span id="relayStatus" class="chip"></span>
+  </div>
+  <p id="webrtcWarn" class="panel caution" hidden>
+    WebRTC is switched off in this browser, so Narada can't connect.
+    In Firefox-based browsers set <code>media.peerconnection.enabled</code> to <code>true</code> in about:config.
+  </p>
 
   <nav>
-    <button data-view="send" class="active">Send</button>
-    <button data-view="devices">Devices</button>
-    <button data-view="incoming">Incoming <span id="incomingCount" class="pill" hidden></span></button>
-    <button data-view="settings">Settings</button>
+    <button data-view="send" class="active"><b>Bhejo</b><small>send</small></button>
+    <button data-view="devices"><b>Lokas</b><small>devices</small></button>
+    <button data-view="incoming"><b>Sandesh</b><small>inbox</small><span id="incomingCount" class="pill" hidden></span></button>
+    <button data-view="settings"><b>Yantra</b><small>settings</small></button>
   </nav>
 
   <main>
-    <section id="view-send">
+    <section id="view-send" class="panel">
+      <h2 class="caption">Pick tabs to send</h2>
       <label class="row">To
         <select id="target"></select>
       </label>
@@ -34,43 +43,46 @@
       <fieldset>
         <label><input type="checkbox" id="optCookies"> Include cookies (keeps you logged in)</label>
         <label><input type="checkbox" id="optStorage"> Include site storage (localStorage / sessionStorage)</label>
-        <p id="sensitiveWarn" class="warn" hidden>
-          Cookies and site storage are login credentials. Send them only to your own devices. They are end-to-end
-          encrypted and sent directly peer-to-peer, and the receiving device must approve them before anything is applied.
+        <p id="sensitiveWarn" class="caution" hidden>
+          Careful! Cookies and site storage are login credentials. Send them only to your own devices. They are
+          end-to-end encrypted, go directly peer-to-peer, and the other device must approve them first.
         </p>
       </fieldset>
-      <button id="sendBtn" class="primary">Send selected tabs</button>
-      <p id="sendResult" class="small"></p>
-      <h4>Recently sent</h4>
+      <button id="sendBtn" class="pow">Send!</button>
+      <p id="sendResult" class="bubble" hidden></p>
+      <h3 class="caption small-caption">Recently sent</h3>
       <ul id="outgoing" class="list small"></ul>
     </section>
 
-    <section id="view-devices" hidden>
+    <section id="view-devices" class="panel" hidden>
+      <h2 class="caption">Your lokas</h2>
       <ul id="devices" class="list"></ul>
-      <h4>Pair a new device</h4>
+      <h3 class="caption small-caption">Pair a new device</h3>
       <div id="pairing"></div>
       <div id="pairControls">
-        <button id="pairStart">Create pairing code</button>
+        <button id="pairStart" class="pow">Create pairing code</button>
         <div class="row">
           <input id="pairCode" placeholder="…or paste a code from the other device" autocomplete="off" spellcheck="false">
-          <button id="pairJoin">Join</button>
+          <button id="pairJoin" class="pow small-pow">Join</button>
         </div>
       </div>
     </section>
 
-    <section id="view-incoming" hidden>
+    <section id="view-incoming" class="panel" hidden>
+      <h2 class="caption">Sandesh: incoming messages</h2>
       <p class="small muted">Nothing is opened or imported until you accept. Requests expire after 5 minutes.</p>
       <ul id="incoming" class="list"></ul>
     </section>
 
-    <section id="view-settings" hidden>
+    <section id="view-settings" class="panel" hidden>
+      <h2 class="caption">Yantra: settings</h2>
       <label class="col">Device name <input id="setName" maxlength="64"></label>
       <label><input type="checkbox" id="setShare"> Let paired devices see my open tabs (titles &amp; URLs)</label>
       <label class="col">Nostr relays for signaling (wss:// only, one per line)
         <textarea id="setRelays" rows="5" spellcheck="false"></textarea>
       </label>
-      <button id="saveSettings" class="primary">Save</button>
-      <p id="settingsResult" class="small"></p>
+      <button id="saveSettings" class="pow">Save</button>
+      <p id="settingsResult" class="bubble" hidden></p>
       <p class="small muted">
         Device ID: <code id="deviceId"></code><br>
         Connections use Google STUN servers only, with no TURN. After the handshake, data goes directly between your
@@ -78,7 +90,8 @@
       </p>
     </section>
   </main>
-  <p id="error" class="error" hidden></p>
+  <p id="error" class="bubble error" hidden></p>
+  <div id="sfx" aria-hidden="true"></div>
   <script src="popup.js"></script>
 </body>
 </html>

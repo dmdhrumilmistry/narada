@@ -24,7 +24,7 @@ export class PeerLink {
     this.pc.onconnectionstatechange = () => {
       if (['failed', 'closed'].includes(this.pc.connectionState)) this.close('connection ' + this.pc.connectionState);
     };
-    if (role === 'offerer') this.#attach(this.pc.createDataChannel('websync', { ordered: true }));
+    if (role === 'offerer') this.#attach(this.pc.createDataChannel('narada', { ordered: true }));
     else this.pc.ondatachannel = (e) => this.#attach(e.channel);
   }
 

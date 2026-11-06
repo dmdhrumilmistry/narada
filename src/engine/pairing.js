@@ -3,7 +3,7 @@
 //   B -> A  hello   {pubB, nameB, nonceB}
 //   A -> B  welcome {pubA, nameA, nonceA, sigA(T)}
 //   B -> A  confirm {sigB(T)}
-//   T = SHA-256(lp("websync-pair-v1", pubA, pubB, nonceA, nonceB))
+//   T = SHA-256(lp("narada-pair-v1", pubA, pubB, nonceA, nonceB))
 //
 // All messages are AES-GCM encrypted under a key derived from the 256-bit
 // one-time secret, so only holders of the code can take part. SAS compares T
@@ -30,7 +30,7 @@ export function parseCode(code) {
 }
 
 export async function pairTranscript(pubA, pubB, nonceA, nonceB) {
-  return sha256(lp('websync-pair-v1', pubA, pubB, nonceA, nonceB));
+  return sha256(lp('narada-pair-v1', pubA, pubB, nonceA, nonceB));
 }
 
 export async function derivePairKey(baseKey, transcript) {
@@ -51,7 +51,7 @@ export class PairingSession {
   async #setup(secret, role) {
     this.role = role;
     this.base = await hkdfKey(secret);
-    const { topic, key } = await deriveTopic(this.base, 'websync-pair', 'pair');
+    const { topic, key } = await deriveTopic(this.base, 'narada-pair', 'pair');
     this.signal = new SignalTopic({ pool: this.pool, nostrKey: this.nostrKey, topic, key, sid: this.sid });
     this.signal.subscribe();
     this.expiresAt = Date.now() + PAIR_CODE_TTL_MS;

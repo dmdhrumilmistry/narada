@@ -26,9 +26,41 @@ async function call(cmd, args = {}) {
 
 function showError(e) {
   const el = $('error');
-  el.textContent = e ? (e.message || String(e)) : '';
+  el.textContent = e ? `Arre! ${e.message || String(e)}` : '';
   el.hidden = !e;
 }
+
+function say(id, text) {
+  const el = $(id);
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+// Comic sound-effect burst.
+const SFX_COLORS = { red: 'var(--vermilion)', blue: 'var(--peacock)', saffron: 'var(--saffron)', sky: 'var(--sky)' };
+function boom(text, color = 'red') {
+  const el = h('div', { class: 'boom' }, text);
+  el.style.setProperty('--boom', SFX_COLORS[color]);
+  $('sfx').replaceChildren(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+const QUIPS = [
+  'Narayan Narayan! Your tabs travel across every loka.',
+  'No middlemen. Just you, your devices and a little divine WebRTC.',
+  'Even Indra’s net can’t read these messages: end-to-end encrypted!',
+  'Cookies travel only when you say so. Narada never gossips… mostly.',
+];
+let quipIndex = 0;
+function updateQuip(s) {
+  let text;
+  if (s.incoming.length) text = `Narayan Narayan! A sandesh has arrived from ${s.incoming[0].fromName}!`;
+  else if (!s.devices.length) text = 'Pair a second device to begin the yatra!';
+  else text = QUIPS[quipIndex];
+  if ($('quip').textContent !== text) $('quip').textContent = text;
+}
+setInterval(() => { quipIndex = (quipIndex + 1) % QUIPS.length; }, 8000);
+const prevStatus = new Map();
 
 const guard = (fn) => async (...a) => { try { showError(null); await fn(...a); } catch (e) { showError(e); } };
 const ago = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`; };
@@ -78,7 +110,8 @@ $('sendBtn').addEventListener('click', guard(async () => {
   $('sendBtn').disabled = true;
   try {
     const r = await call('sendTabs', { deviceId, tabIds, cookies, storage });
-    $('sendResult').textContent = `Sent ${r.count} tab(s). Waiting for the other device to accept.` + (r.warnings?.length ? ' ' + r.warnings.join('; ') : '');
+    boom('WHOOSH!', 'blue');
+    say('sendResult', `Sent ${r.count} tab(s)! Waiting for the other device to accept.` + (r.warnings?.length ? ' ' + r.warnings.join('; ') : ''));
   } finally {
     $('sendBtn').disabled = false;
   }
@@ -96,26 +129,28 @@ function renderPairing(p) {
   const box = $('pairing');
   $('pairControls').hidden = !!p && !['failed', 'done'].includes(p.state);
   if (!p) return box.replaceChildren();
-  const cancel = h('button', { onclick: guard(async () => { await call('pairCancel'); await refresh(); }) }, 'Cancel');
+  const cancel = h('button', { class: 'pow small-pow secondary', onclick: guard(async () => { await call('pairCancel'); await refresh(); }) }, 'Cancel');
   if (p.state === 'waiting' && p.role === 'initiator') {
     const mins = Math.max(0, Math.round((p.expiresAt - Date.now()) / 60000));
     box.replaceChildren(
       h('p', { class: 'small' }, `Enter this one-time code on your other device (expires in ~${mins} min). Keep it private.`),
       h('div', { class: 'code' }, p.code),
-      h('div', { class: 'row' }, h('button', { onclick: () => navigator.clipboard.writeText(p.code) }, 'Copy'), cancel),
+      h('div', { class: 'row' },
+        h('button', { class: 'pow small-pow', onclick: () => navigator.clipboard.writeText(p.code).then(() => boom('COPIED!', 'sky')) }, 'Copy'),
+        cancel),
     );
   } else if (p.state === 'waiting') {
-    box.replaceChildren(h('p', { class: 'small' }, 'Contacting the other device…'), cancel);
+    box.replaceChildren(h('p', { class: 'bubble' }, 'Calling out across the lokas… make sure the other device is waiting.'), cancel);
   } else if (p.state === 'verify') {
     box.replaceChildren(
       h('p', { class: 'small' }, `Check that "${p.peerName}" shows the same number:`),
       h('div', { class: 'sas' }, p.sas),
       h('div', { class: 'row' },
-        h('button', { class: 'primary', onclick: guard(async () => { await call('pairConfirm'); await refresh(); }) }, 'Numbers match: pair'),
+        h('button', { class: 'pow small-pow', onclick: guard(async () => { await call('pairConfirm'); boom('BANDHAN!', 'saffron'); await refresh(); }) }, 'Numbers match: pair'),
         cancel),
     );
   } else if (p.state === 'failed') {
-    box.replaceChildren(h('p', { class: 'error' }, `Pairing failed: ${p.error}`));
+    box.replaceChildren(h('p', { class: 'bubble error' }, `Pairing failed: ${p.error}`));
   } else {
     box.replaceChildren();
   }
@@ -123,13 +158,17 @@ function renderPairing(p) {
 
 // ---------- devices ----------
 function renderDevices(s) {
+  for (const d of s.devices) {
+    if (prevStatus.has(d.deviceId) && prevStatus.get(d.deviceId) !== 'connected' && d.status === 'connected') boom('ZAP!', 'blue');
+    prevStatus.set(d.deviceId, d.status);
+  }
   $('devices').replaceChildren(...s.devices.map((d) => {
     const remote = s.remoteTabs[d.deviceId];
     const li = h('li', { class: 'card' },
       h('div', { class: 'row' },
         h('span', { class: `dot ${d.status}`, title: d.status }),
         h('span', { class: 'grow ellipsis' }, d.name),
-        h('span', { class: 'muted small' }, d.status),
+        h('span', { class: 'status-tag' }, { connected: 'Online!', connecting: 'Connecting…', offline: 'Offline' }[d.status] ?? d.status),
         d.status === 'connected'
           ? h('button', { onclick: guard(() => call('requestTabs', { deviceId: d.deviceId })) }, 'Tabs')
           : h('button', { disabled: d.status === 'connecting', onclick: guard(() => call('connect', { deviceId: d.deviceId })) }, 'Connect'),
@@ -137,6 +176,9 @@ function renderDevices(s) {
           title: 'Unpair',
           onclick: guard(async () => { if (confirm(`Unpair "${d.name}"? Its keys will be deleted.`)) { await call('unpair', { deviceId: d.deviceId }); await refresh(); } }),
         }, '✕')));
+    if (d.issue && d.status !== 'connected') {
+      li.append(h('p', { class: 'small muted' }, `Last attempt: ${d.issue}. Both devices must be online; strict firewalls can block direct P2P.`));
+    }
     if (remote) {
       li.append(remote.disabled
         ? h('p', { class: 'small muted' }, 'This device does not share its tab list.')
@@ -172,7 +214,6 @@ function renderIncoming(s) {
       sensitive ? h('p', { class: 'warn' }, 'Accepting signs this browser in to these sites. Only accept if you sent this yourself.') : null,
       h('div', { class: 'row' },
         h('button', {
-          class: 'primary',
           onclick: (e) => {
             // Permission prompt must start synchronously in the gesture.
             const perm = sensitive ? requestSensitive() : Promise.resolve(true);
@@ -180,6 +221,7 @@ function renderIncoming(s) {
               if (!(await perm)) throw new Error('Permission denied: cannot import cookies/site data.');
               e.target.disabled = true;
               const r = await call('acceptTransfer', { id: t.id });
+              boom('SHABASH!', 'saffron');
               showError(r.cookiesFailed ? new Error(`${r.cookiesFailed} cookie(s) could not be set.`) : null);
               await refresh();
             })();
@@ -210,16 +252,18 @@ $('saveSettings').addEventListener('click', guard(async () => {
     relays: $('setRelays').value.split('\n').map((x) => x.trim()).filter(Boolean),
   });
   settingsLoaded = false;
-  $('settingsResult').textContent = 'Saved.';
+  say('settingsResult', 'Saved! Tathastu.');
   await refresh();
 }));
 
 // ---------- main loop ----------
 async function refresh() {
   state = await call('getState');
-  $('deviceName').textContent = '· ' + state.device.name;
+  $('deviceName').textContent = state.device.name;
+  $('webrtcWarn').hidden = state.webrtc !== false;
+  updateQuip(state);
   $('deviceId').textContent = state.device.id;
-  $('relayStatus').textContent = state.relays.total ? `relays ${state.relays.connected}/${state.relays.total}` : 'relays idle';
+  $('relayStatus').textContent = state.relays.total ? `Relays ${state.relays.connected}/${state.relays.total}` : 'Relays asleep (P2P only)';
   renderPairing(state.pairing);
   renderDevices(state);
   renderIncoming(state);

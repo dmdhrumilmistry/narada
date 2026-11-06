@@ -7,10 +7,10 @@ import {
   aesOpen, aesSeal, b64u, concat, dec, ecdh, enc, generateEphemeral, hkdfAesKey, hkdfBits, hkdfKey, lp, rand, sha256, sign, unb64u, verify,
 } from './crypto.js';
 
-const AAD = enc('websync-frame-v1');
+const AAD = enc('narada-frame-v1');
 
 export async function sessionTranscript(o, a, offererFp, answererFp) {
-  return sha256(lp('websync-sess-v1', o.id, o.eph, o.nonce, a.id, a.eph, a.nonce, offererFp, answererFp));
+  return sha256(lp('narada-sess-v1', o.id, o.eph, o.nonce, a.id, a.eph, a.nonce, offererFp, answererFp));
 }
 
 export class SecureChannel {
@@ -35,10 +35,16 @@ export class SecureChannel {
     this.partBytes = 0;
   }
 
-  async start() {
-    this.eph = await generateEphemeral();
-    this.nonce = rand(16);
-    await this.send(JSON.stringify({ t: 'auth1', eph: b64u(this.eph.pub), nonce: b64u(this.nonce) }));
+  // Queued on the inbound chain so a fast peer's auth1 is never processed before
+  // our own ephemeral key exists (Firefox can deliver it that early).
+  start() {
+    const job = this.inQ.then(async () => {
+      this.eph = await generateEphemeral();
+      this.nonce = rand(16);
+      await this.send(JSON.stringify({ t: 'auth1', eph: b64u(this.eph.pub), nonce: b64u(this.nonce) }));
+    });
+    this.inQ = job.catch((e) => this.close(e.message || 'handshake failed'));
+    return job;
   }
 
   receive(data) {

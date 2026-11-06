@@ -13,6 +13,13 @@ import * as store from './store.js';
 const day = (offset = 0) => Math.floor(Date.now() / 86_400_000) + offset;
 const newId = () => b64u(rand(12));
 
+export function browserName(ua = navigator.userAgent) {
+  if (navigator.brave) return 'Brave';
+  const known = [[/Edg\//, 'Edge'], [/OPR\//, 'Opera'], [/Vivaldi/, 'Vivaldi'], [/LibreWolf/, 'LibreWolf'],
+    [/Waterfox/, 'Waterfox'], [/Floorp/, 'Floorp'], [/Zen\//, 'Zen'], [/Firefox\//, 'Firefox'], [/Chrome\//, 'Chrome']];
+  return known.find(([re]) => re.test(ua))?.[1] ?? 'Browser';
+}
+
 export class Engine {
   constructor(ops) {
     this.ops = ops; // (method, args) => Promise
@@ -24,16 +31,18 @@ export class Engine {
     this.incoming = new Map(); // transferId -> pending transfer (memory only)
     this.outgoing = []; // recent sent transfers (metadata only)
     this.remoteTabs = new Map(); // deviceId -> { at, tabs }
+    this.lastIssue = new Map(); // deviceId -> last connection problem (shown in UI)
     this.sid = hex(rand(8));
     this.nostrKey = newNostrKey(); // ephemeral, never persisted
   }
 
   async init() {
+    // Some hardened browsers (e.g. LibreWolf, or media.peerconnection.enabled=false) disable WebRTC.
+    this.webrtc = typeof globalThis.RTCPeerConnection === 'function';
     this.identity = await store.get('identity');
     if (!this.identity) {
       const id = await generateIdentity();
-      const browser = /Firefox\//.test(navigator.userAgent) ? 'Firefox' : /Edg\//.test(navigator.userAgent) ? 'Edge' : 'Chrome';
-      this.identity = { ...id, name: `${browser} ${id.deviceId.slice(0, 4).toUpperCase()}`, createdAt: Date.now() };
+      this.identity = { ...id, name: `${browserName()} ${id.deviceId.slice(0, 4).toUpperCase()}`, createdAt: Date.now() };
       await store.set('identity', this.identity);
     }
     this.settings = { relays: DEFAULT_RELAYS, shareTabList: true, ...(await store.get('settings')) };
@@ -83,7 +92,12 @@ export class Engine {
       for (const t of map.values()) {
         if (!t.matches(ev)) continue;
         const env = await t.open(ev);
-        if (env) await this.#onSignal(deviceId, env).catch((e) => console.warn('signal error', e.message));
+        if (env) {
+          await this.#onSignal(deviceId, env).catch((e) => {
+            this.lastIssue.set(deviceId, `handshake error: ${e.message}`);
+            this.links.get(deviceId)?.close('handshake error');
+          });
+        }
         return;
       }
     }
@@ -98,6 +112,7 @@ export class Engine {
     const pair = this.pairs.get(deviceId);
     if (!pair || !body || typeof body.sess !== 'string' || body.sess.length > 64) return;
     if (type === 'offer') {
+      if (!this.webrtc) return;
       const mine = this.pendingOffers.get(deviceId);
       // Glare: the lower deviceId is polite and yields to the remote offer.
       if (mine && this.identity.deviceId > deviceId) return;
@@ -125,12 +140,14 @@ export class Engine {
         const p = this.pendingOffers.get(pair.deviceId);
         if (p) { clearTimeout(p.timer); this.pendingOffers.delete(pair.deviceId); }
         this.status.set(pair.deviceId, 'connected');
+        this.lastIssue.delete(pair.deviceId);
         // Handshake done: stop using relays for this device.
         this.#unlisten(pair.deviceId);
       },
       onMessage: (m) => this.#onPeerMessage(pair.deviceId, m).catch((e) => console.warn('peer message error', e.message)),
-      onClose: () => {
+      onClose: (_l, reason) => {
         if (this.links.get(pair.deviceId) !== link) return;
+        if (!['replaced', 'unpaired', 'stale'].includes(reason)) this.lastIssue.set(pair.deviceId, reason);
         const wasConnected = this.status.get(pair.deviceId) === 'connected';
         this.links.delete(pair.deviceId);
         this.status.set(pair.deviceId, 'offline');
@@ -147,6 +164,7 @@ export class Engine {
   async connect(deviceId) {
     const pair = this.pairs.get(deviceId);
     if (!pair) throw new Error('Unknown device');
+    if (!this.webrtc) throw new Error('WebRTC is disabled in this browser');
     if (this.links.has(deviceId) && this.status.get(deviceId) !== 'offline') return;
     const sess = newId();
     const link = this.#newLink(pair, 'offerer');
@@ -194,7 +212,7 @@ export class Engine {
         const sensitive = t.tabs.some((x) => x.cookies?.length || x.storage);
         await this.ops('notify', {
           title: `${entry.fromName} sent ${t.tabs.length} tab(s)`,
-          message: sensitive ? 'Includes cookies/site data. Open WebSync to review.' : 'Open WebSync to review.',
+          message: sensitive ? 'Includes cookies/site data. Open Narada to review.' : 'Open Narada to review.',
         });
         break;
       }
@@ -311,11 +329,13 @@ export class Engine {
   #state() {
     return {
       device: { id: this.identity.deviceId, name: this.identity.name },
+      webrtc: this.webrtc,
       relays: this.pool.status(),
       settings: this.settings,
       pairing: this.pairing?.view() ?? null,
       devices: [...this.pairs.values()].map((p) => ({
         deviceId: p.deviceId, name: p.name, createdAt: p.createdAt, status: this.status.get(p.deviceId) ?? 'offline',
+        issue: this.lastIssue.get(p.deviceId) ?? null,
       })),
       // Summaries only: cookie and storage values never leave the engine except to be applied.
       incoming: [...this.incoming.values()].map((t) => ({

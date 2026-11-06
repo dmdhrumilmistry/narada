@@ -15,7 +15,7 @@ export class SignalTopic {
    */
   constructor({ pool, nostrKey, topic, key, sid }) {
     Object.assign(this, { pool, nostrKey, topic, key, sid });
-    this.aad = enc(`websync-signal|${NOSTR_KIND}|${topic}`);
+    this.aad = enc(`narada-signal|${NOSTR_KIND}|${topic}`);
     this.nonces = new Map();
   }
 
