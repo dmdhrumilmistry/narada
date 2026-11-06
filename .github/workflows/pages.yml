@@ -36,7 +36,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run site
-      - uses: actions/configure-pages@v5
+      # No configure-pages step: the site uses relative links, so it needs no base path,
+      # and that step would need extra Pages permissions on this read-only job.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-site
