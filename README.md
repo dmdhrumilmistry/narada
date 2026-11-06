@@ -31,6 +31,10 @@ tabs (and, if you choose, your logins) between your browsers. It does this
   Notes are memory-only and expire after 15 minutes.
 * **Received history:** reopen any of the last 50 tabs you received. It keeps titles and
   links only, and you can clear it or turn it off.
+* **Configurable and enterprise-ready:** feature switches, custom relays and STUN servers, and
+  optional **OpenTelemetry** log export. Organizations can set and lock any setting via
+  Chrome/Edge policy, Firefox `policies.json`, or MDM (Intune, Jamf, Google Admin). See
+  [`docs/ENTERPRISE.md`](docs/ENTERPRISE.md).
 * A friendly **comic-book UI**, toned down so it stays easy to read (see below).
 
 ## Supported browsers

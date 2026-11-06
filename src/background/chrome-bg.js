@@ -65,5 +65,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 setupQuickSend(engineCall);
 
+// Policy pushed or changed by the organization: apply it live.
+api.storage.onChanged.addListener((_changes, area) => {
+  if (area === 'managed') engineCall('reloadConfig').catch(() => {});
+});
+
 api.runtime.onStartup.addListener(() => ensureEngineHost());
 api.runtime.onInstalled.addListener(() => ensureEngineHost());

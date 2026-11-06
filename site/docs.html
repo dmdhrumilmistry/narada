@@ -11,6 +11,7 @@
       <li><a href="#security">Security</a></li>
       <li><a href="#permissions">Permissions</a></li>
       <li><a href="#troubleshooting">Troubleshooting</a></li>
+      <li><a href="#enterprise">For organizations</a></li>
       <li><a href="#faq">FAQ</a></li>
       <li><a href="#build">Build from source</a></li>
     </ol>
@@ -121,6 +122,7 @@
         <tr><td><code>notifications</code></td><td>Tell you that tabs are waiting for approval.</td></tr>
         <tr><td><code>offscreen</code> (Chromium)</td><td>Run the WebRTC connection in the background.</td></tr>
         <tr><td><code>contextMenus</code> / <code>menus</code></td><td>The "Send to device with Narada" right-click item.</td></tr>
+        <tr><td><code>storage</code></td><td>Read settings your organization manages through browser policy.</td></tr>
         <tr><td><code>cookies</code> + all sites <em>(optional)</em></td><td>Requested only the first time you send or accept sign-in data.</td></tr>
       </tbody>
     </table>
@@ -140,6 +142,20 @@
     <h3>Some cookies "couldn't be set"</h3>
     <p>Browsers reject some cookies, for example cross-site cookies in strict tracking-protection modes. The tab still opens,
       but you may need to sign in on that site.</p>
+
+    <h2 id="enterprise">For organizations</h2>
+    <p>Everything in <em>Yantra</em> can be set centrally through Chrome or Edge enterprise policy, Firefox
+      <code>policies.json</code>, Group Policy, Intune, Jamf or the Google Admin console. A managed setting overrides the
+      user's choice and shows a 🔒. Restrictions are enforced on both ends, so a device that blocks cookies rejects incoming
+      sign-in data even if the sender allows it.</p>
+    <ul>
+      <li><strong>Feature switches:</strong> pairing, cookies, site storage, notes, auto-open, tab-list sharing, history.</li>
+      <li><strong>Network:</strong> your own Nostr relays and STUN servers (no TURN, by design).</li>
+      <li><strong>OpenTelemetry:</strong> export logs to your OTLP/HTTP collector with custom headers and resource attributes.
+        Only events are sent, never URLs, titles, cookies or notes.</li>
+    </ul>
+    <p>Policy examples for every platform are in
+      <a href="https://github.com/dmdhrumilmistry/narada/blob/main/docs/ENTERPRISE.md">docs/ENTERPRISE.md</a>.</p>
 
     <h2 id="faq">FAQ</h2>
     <h3>Is there really no server?</h3>

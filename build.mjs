@@ -1,11 +1,12 @@
 // Builds dist/chromium (MV3, service worker + offscreen) and dist/firefox (MV2, persistent background).
 import { build } from 'esbuild';
+import { SCHEMA } from './src/shared/config.js';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const watch = process.argv.includes('--watch');
 
-const CSP = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' wss:; img-src 'self' data:; style-src 'self'";
+const CSP = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; connect-src 'self' wss: https: http://localhost:* http://127.0.0.1:*; img-src 'self' data:; style-src 'self'";
 // Bundled comic fonts (SIL Open Font License), so no remote font loading.
 const FONTS = {
   bangers: ['bangers-latin-400-normal.woff2'],
@@ -29,7 +30,9 @@ const manifests = {
     minimum_chrome_version: '116',
     background: { service_worker: 'background.js' },
     action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'notifications', 'scripting', 'offscreen', 'contextMenus'],
+    permissions: ['tabs', 'notifications', 'scripting', 'offscreen', 'contextMenus', 'storage'],
+    // Lets admins configure Narada via Chrome/Edge enterprise policy or MDM (storage.managed).
+    storage: { managed_schema: 'managed_schema.json' },
     commands: {
       _execute_action: { suggested_key: { default: 'Alt+Shift+Y' }, description: 'Open Narada' },
       'send-current-tab': { suggested_key: { default: 'Alt+Shift+S' }, description: 'Send the current tab to the last used device' },
@@ -43,7 +46,7 @@ const manifests = {
     ...common,
     background: { scripts: ['background.js'], persistent: true },
     browser_action: { default_popup: 'popup.html', default_icon: icons, default_title: 'Narada' },
-    permissions: ['tabs', 'notifications', 'scripting', 'menus'],
+    permissions: ['tabs', 'notifications', 'scripting', 'menus', 'storage'],
     commands: {
       _execute_browser_action: { suggested_key: { default: 'Alt+Shift+Y' }, description: 'Open Narada' },
       'send-current-tab': { suggested_key: { default: 'Alt+Shift+S' }, description: 'Send the current tab to the last used device' },
@@ -79,6 +82,7 @@ for (const target of ['chromium', 'firefox']) {
     cpSync(`node_modules/@fontsource/${pkgName}/LICENSE`, `${out}/fonts/LICENSE-${pkgName}.txt`);
   }
   if (target === 'chromium') {
+    writeFileSync(`${out}/managed_schema.json`, JSON.stringify(SCHEMA, null, 2));
     writeFileSync(`${out}/offscreen.html`, readFileSync('src/offscreen/offscreen.html', 'utf8').replace('type="module" ', ''));
   }
   writeFileSync(`${out}/manifest.json`, JSON.stringify(manifests[target], null, 2));

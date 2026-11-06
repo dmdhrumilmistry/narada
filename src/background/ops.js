@@ -32,13 +32,17 @@ function writePageStorage(origin, local, session) {
   } catch { return false; }
 }
 
-function waitComplete(tabId, timeout = 20000) {
+// Wait until the tab has finished loading *the expected origin*. A new tab can briefly
+// report "complete" while still on about:blank (seen in Firefox), and injecting
+// there would be refused by the origin check in writePageStorage.
+function waitLoaded(tabId, origin, timeout = 20000) {
+  const ready = (tab) => tab?.status === 'complete' && typeof tab.url === 'string' && tab.url.startsWith(origin);
   return new Promise((resolve) => {
     const done = () => { clearTimeout(t); api.tabs.onUpdated.removeListener(listener); resolve(); };
-    const listener = (id, info) => { if (id === tabId && info.status === 'complete') done(); };
+    const listener = (id, _info, tab) => { if (id === tabId && ready(tab)) done(); };
     const t = setTimeout(done, timeout);
     api.tabs.onUpdated.addListener(listener);
-    api.tabs.get(tabId).then((tab) => tab.status === 'complete' && done()).catch(done);
+    api.tabs.get(tabId).then((tab) => ready(tab) && done()).catch(done);
   });
 }
 
@@ -108,7 +112,7 @@ export const ops = {
       const tab = await api.tabs.create({ url: t.url, pinned: t.pinned, active: false });
       r.opened++;
       if (t.storage && (Object.keys(t.storage.local).length || Object.keys(t.storage.session).length)) {
-        await waitComplete(tab.id);
+        await waitLoaded(tab.id, t.storage.origin);
         try {
           const [res] = await api.scripting.executeScript({
             target: { tabId: tab.id }, func: writePageStorage, args: [t.storage.origin, t.storage.local, t.storage.session],
@@ -124,6 +128,11 @@ export const ops = {
     await api.notifications.create({
       type: 'basic', iconUrl: api.runtime.getURL('icons/icon128.png'), title: String(title).slice(0, 100), message: String(message).slice(0, 200),
     });
+  },
+
+  // Organization policy (Chrome/Edge enterprise policy, Firefox policies.json, MDM).
+  async getManaged() {
+    try { return (await api.storage?.managed?.get(null)) ?? {}; } catch { return {}; } // no policy set
   },
 
   async devices(info) {
@@ -145,6 +154,10 @@ export async function callOps(method, args) {
 // Popup command handler shared by both browsers. `engineCall` reaches the engine.
 export async function handlePopupCommand(cmd, args, engineCall) {
   if (cmd === 'sendTabs') {
+    // Fail fast before reading cookies/storage if policy forbids sending them.
+    const { settings } = await engineCall('getState');
+    if (args.cookies && !settings.allowCookieTransfer) throw new Error('Sending cookies is turned off for this device.');
+    if (args.storage && !settings.allowStorageTransfer) throw new Error('Sending site storage is turned off for this device.');
     const { tabs, warnings } = await ops.collectTabs(args);
     if (!tabs.length) throw new Error(warnings.join('; ') || 'Nothing to send');
     const res = await engineCall('sendTransfer', { deviceId: args.deviceId, tabs });

@@ -6,7 +6,7 @@ const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
 const { Builder } = require('selenium-webdriver');
 const firefox = require('selenium-webdriver/firefox');
-const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, check, sleep } = require('./lib.cjs');
+const { tmpDir, startSite, launchChromium, pairConnectTransfer, featureChecks, telemetryChecks, startCollector, check, sleep } = require('./lib.cjs');
 
 const UUID = '11111111-2222-4333-8444-555555555555';
 
@@ -74,6 +74,9 @@ async function launchFirefox() {
       receiverTabUrls: () => F.exec('return (await browser.tabs.query({})).map((t) => t.url);'),
       senderTabIds: async () => (await C.page.evaluate(() => chrome.tabs.query({ url: 'http://localhost/*' }))).map((t) => t.id).slice(0, 1),
     });
+    const collector = await startCollector();
+    await telemetryChecks({ sender: C, receiver: F, collector, senderTabIds: async () => (await C.page.evaluate(() => chrome.tabs.query({ url: 'http://localhost/*' }))).map((t) => t.id).slice(0, 1) });
+    collector.server.close();
     console.log('PASS chromium-to-firefox');
   } finally {
     await F.driver.quit();
