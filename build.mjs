@@ -18,7 +18,7 @@ const common = {
   short_name: 'Narada',
   author: 'dmdhrumilmistry',
   version: pkg.version,
-  description: 'Narayan Narayan! Send selected tabs (optionally with cookies & site data) between your browsers over end-to-end encrypted P2P WebRTC. No central server.',
+  description: 'Send selected tabs (optionally with cookies & site data) between your browsers over encrypted P2P WebRTC.',
   icons,
   incognito: 'not_allowed',
 };
