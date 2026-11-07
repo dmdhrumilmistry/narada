@@ -3,6 +3,7 @@
 import { actionApi, api } from '../shared/api.js';
 import { safeHttpUrl, validateTab } from '../shared/validate.js';
 import { updateMenus } from './quick.js';
+import { isAndroid } from '../shared/platform.js';
 
 const SENSITIVE_PERMS = { permissions: ['cookies'], origins: ['<all_urls>'] };
 
@@ -109,7 +110,8 @@ export const ops = {
     const r = { opened: 0, cookiesSet: 0, cookiesFailed: 0, storageApplied: 0 };
     for (const t of tabs) {
       for (const c of t.cookies ?? []) (await setCookie(c)) ? r.cookiesSet++ : r.cookiesFailed++;
-      const tab = await api.tabs.create({ url: t.url, pinned: t.pinned, active: false });
+      // Pinned tabs don't exist on Firefox for Android.
+      const tab = await api.tabs.create({ url: t.url, active: false, ...(t.pinned && !(await isAndroid()) ? { pinned: true } : {}) });
       r.opened++;
       if (t.storage && (Object.keys(t.storage.local).length || Object.keys(t.storage.session).length)) {
         await waitLoaded(tab.id, t.storage.origin);
@@ -125,9 +127,14 @@ export const ops = {
   },
 
   async notify({ title, message }) {
+    if (!api.notifications?.create) return; // not available on every platform
     await api.notifications.create({
       type: 'basic', iconUrl: api.runtime.getURL('icons/icon128.png'), title: String(title).slice(0, 100), message: String(message).slice(0, 200),
     });
+  },
+
+  async platform() {
+    return (await isAndroid()) ? 'android' : 'desktop';
   },
 
   // Organization policy (Chrome/Edge enterprise policy, Firefox policies.json, MDM).
@@ -141,7 +148,8 @@ export const ops = {
 
   async badge({ text }) {
     const a = actionApi();
-    await a.setBadgeBackgroundColor({ color: '#d93025' });
+    if (!a?.setBadgeText) return; // no badge on Firefox for Android
+    await a.setBadgeBackgroundColor?.({ color: '#d93025' });
     await a.setBadgeText({ text: String(text).slice(0, 4) });
   },
 };

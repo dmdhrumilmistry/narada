@@ -1,6 +1,10 @@
 // Popup UI. All untrusted strings are rendered with textContent only.
 import { api } from '../shared/api.js';
 import { safeHttpUrl } from '../shared/validate.js';
+import { isAndroidUA } from '../shared/platform.js';
+
+// Firefox for Android shows the popup full-screen: switch to the mobile layout.
+if (isAndroidUA()) document.documentElement.classList.add('mobile');
 
 const SENSITIVE_PERMS = { permissions: ['cookies'], origins: ['<all_urls>'] };
 const $ = (id) => document.getElementById(id);
@@ -166,7 +170,13 @@ function pluck(deviceId) {
 // ---------- send: tabs ----------
 async function loadTabs() {
   tabs = (await api.tabs.query({ currentWindow: true })).filter((t) => safeHttpUrl(t.url));
-  if (!selected.size) tabs.filter((t) => t.active).forEach((t) => selected.add(t.id));
+  if (!selected.size) {
+    // Desktop: the tab you're on. Android opens the popup as its own page, so fall
+    // back to the web page you looked at most recently.
+    const active = tabs.filter((t) => t.active);
+    const recent = [...tabs].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))[0];
+    (active.length ? active : recent ? [recent] : []).forEach((t) => selected.add(t.id));
+  }
   for (const id of [...selected]) if (!tabs.some((t) => t.id === id)) selected.delete(id);
   const list = $('tabList');
   if (!tabs.length) {
@@ -573,6 +583,7 @@ function refreshUi() {
   $('deviceName').textContent = `This device: ${s.device.name}`;
   $('deviceId').textContent = s.device.id;
   $('webrtcWarn').hidden = s.webrtc !== false;
+  if (s.platform === 'android') document.documentElement.classList.add('mobile');
   updateQuip(s);
   const net = $('netStatus');
   if (online.length) { net.textContent = `${online.length} linked · direct`; net.className = 'chip p2p'; net.title = 'Connected peer-to-peer. No server in between.'; }

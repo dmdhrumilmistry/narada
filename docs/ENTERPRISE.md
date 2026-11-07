@@ -104,6 +104,9 @@ ADMX/macOS templates):
 
 The `install_url` works once Narada is listed on addons.mozilla.org.
 
+**Firefox for Android** doesn't support enterprise policies, so Narada runs with its
+defaults or the user's settings there.
+
 ## OpenTelemetry
 
 Narada sends **OTLP/HTTP JSON logs** (`POST <endpoint>/v1/logs`), batched every 5 s.

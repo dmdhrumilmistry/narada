@@ -9,6 +9,7 @@ let lastSignature = '';
 let rebuilding = Promise.resolve();
 
 function notify(title, message) {
+  if (!api.notifications?.create) return Promise.resolve();
   return api.notifications.create({
     type: 'basic', iconUrl: api.runtime.getURL('icons/icon128.png'), title: String(title).slice(0, 100), message: String(message).slice(0, 200),
   }).catch(() => {});

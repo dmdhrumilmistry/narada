@@ -54,7 +54,11 @@ const manifests = {
     optional_permissions: ['cookies', '<all_urls>'],
     content_security_policy: CSP,
     // Nothing is collected by or sent to the developer; relays only see encrypted handshakes.
-    browser_specific_settings: { gecko: { id: 'narada@dmdhrumilmistry', strict_min_version: '115.0', data_collection_permissions: { required: ['none'] } } },
+    browser_specific_settings: {
+      gecko: { id: 'narada@dmdhrumilmistry', strict_min_version: '115.0', data_collection_permissions: { required: ['none'] } },
+      // Firefox for Android (Fenix). 120+ has the scripting and tabs APIs Narada needs.
+      gecko_android: { strict_min_version: '120.0' },
+    },
   },
 };
 

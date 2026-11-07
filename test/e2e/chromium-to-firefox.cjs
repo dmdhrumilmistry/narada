@@ -25,7 +25,8 @@ async function launchFirefox() {
   const builder = new Builder().forBrowser('firefox').setFirefoxOptions(opts);
   if (process.env.GECKODRIVER) builder.setFirefoxService(new firefox.ServiceBuilder(process.env.GECKODRIVER));
   const driver = await builder.build();
-  await driver.installAddon(path.resolve('test/e2e/.build/narada-firefox-test.xpi'), true);
+  // FIREFOX_XPI=…android-sim.xpi runs the suite against the Firefox-for-Android API surface.
+  await driver.installAddon(path.resolve(process.env.FIREFOX_XPI || 'test/e2e/.build/narada-firefox-test.xpi'), true);
   // The test build opens its popup in a tab (WebDriver may not navigate to moz-extension://).
   for (let i = 0; i < 20; i++) {
     for (const hnd of await driver.getAllWindowHandles()) {
@@ -52,6 +53,9 @@ async function launchFirefox() {
   const F = await launchFirefox();
   try {
     check((await F.call('getState')).webrtc === true, 'Firefox engine has WebRTC');
+    if (process.env.FIREFOX_XPI?.includes('android')) {
+      check((await F.call('getState')).platform === 'android', 'running against the Firefox-for-Android API surface');
+    }
     await pairConnectTransfer({
       sender: C,
       receiver: F,

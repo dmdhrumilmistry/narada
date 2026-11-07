@@ -296,3 +296,22 @@ body:not([data-view="send"]) footer { padding: 0 0 8px; }
 @keyframes shake { 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(1px); } }
 @keyframes rise { from { transform: translateY(6px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- Firefox for Android: full-screen, touch-friendly ---------- */
+html.mobile, html.mobile body { overflow: auto; }
+html.mobile body { width: 100%; height: auto; min-height: 100vh; font-size: 16px; }
+html.mobile main.panel { flex: none; overflow: visible; margin: 0 8px; }
+html.mobile nav { padding: 0 8px; }
+html.mobile .masthead { padding-top: 12px; }
+html.mobile .this-device { margin-left: 76px; }
+html.mobile footer { margin-top: auto; position: sticky; bottom: 0; background: var(--paper); padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 4; }
+html.mobile .btn, html.mobile .pow, html.mobile nav button { min-height: 44px; }
+html.mobile .btn.small { min-height: 38px; padding: 8px 12px; }
+html.mobile .leaf { padding: 10px 12px; }
+html.mobile .hole { width: 22px; height: 22px; }
+html.mobile .switch span { width: 42px; height: 24px; }
+html.mobile .switch span::after { width: 16px; height: 16px; }
+html.mobile .switch input:checked + span::after { transform: translateX(18px); }
+html.mobile .leaves { max-height: none; }
+html.mobile input, html.mobile textarea, html.mobile select { font-size: 16px; } /* no zoom-on-focus */
+html.mobile .desktop-only { display: none !important; }
