@@ -57,6 +57,7 @@ export class Engine {
     // Config = defaults ← user settings ← organization policy (MDM / enterprise policy).
     this.userSettings = (await store.get('settings')) ?? {};
     this.managed = (await this.ops('getManaged').catch(() => ({}))) ?? {};
+    this.platform = await this.ops('platform').catch(() => 'desktop');
     this.#applyConfig();
     this.history = this.settings.keepHistory ? ((await store.get('history')) ?? []) : [];
     for (const p of await store.listPrefix('pair:')) this.pairs.set(p.deviceId, p);
@@ -64,7 +65,7 @@ export class Engine {
     for (const id of this.pairs.keys()) { this.#setStatus(id, 'offline'); this.#listen(id); }
     setInterval(() => this.#rotateTopics(), 10 * 60 * 1000);
     for (const id of this.pairs.keys()) this.connect(id).catch(() => {});
-    this.telemetry.info('engine.start', { pairs: this.pairs.size, webrtc: this.webrtc, policy: Object.keys(this.managed).length ? 'managed' : 'none' });
+    this.telemetry.info('engine.start', { kind: this.platform, pairs: this.pairs.size, webrtc: this.webrtc, policy: Object.keys(this.managed).length ? 'managed' : 'none' });
   }
 
   // Recompute the effective config; called on start, on settings changes and when policy changes.
@@ -572,6 +573,7 @@ export class Engine {
     return {
       device: { id: this.identity.deviceId, name: this.identity.name },
       webrtc: this.webrtc,
+      platform: this.platform,
       relays: this.pool.status(),
       // Header values may hold tokens: the popup only ever sees masked values.
       settings: {

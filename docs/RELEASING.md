@@ -84,6 +84,10 @@ release after that adds a version. Afterwards, add screenshots once in the AMO d
 Every release overwrites the AMO summary and description with the text in
 `store/amo-metadata.json`, so edit them there, not in the dashboard.
 
+The add-on is marked compatible with **Firefox for Android** (`gecko_android` in the manifest and
+`compatibility: ["firefox", "android"]` in `store/amo-metadata.json`), so one AMO listing covers
+desktop and Android.
+
 Because the code is bundled, AMO requires the source. The workflow uploads
 `narada-source.zip` (the tagged commit) with build instructions for reviewers:
 Node.js 22, then `npm ci && npm run build`.

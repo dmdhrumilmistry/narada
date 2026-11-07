@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Narada</title>
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -143,6 +144,7 @@
 
         <button class="btn" type="submit">Save</button>
       </form>
+      <div class="desktop-only">
       <h2 class="caption">Shortcuts</h2>
       <ul class="tips">
         <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd> opens Narada.</li>
@@ -151,6 +153,7 @@
       </ul>
       <p class="fine">Change the keys at <code>chrome://extensions/shortcuts</code>, or in Firefox under Add-ons → ⚙ → Manage Extension Shortcuts.
         Quick sends carry the tab only, never sign-in data.</p>
+      </div>
       <p class="fine">
         Device ID <code id="deviceId"></code><br>
         Connections use STUN only (Google by default), with no TURN. After the handshake, data goes directly between your devices.

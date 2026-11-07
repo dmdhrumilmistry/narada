@@ -5,10 +5,21 @@
   "description": {
     "en-US": "Narada (named after Narada Muni, the messenger sage of the Bhagavata Purana) moves tabs between your browsers, including Firefox, Chrome, Edge, Brave and other combinations.\n\n<b>How it works</b>\n• Pair two browsers once with a one-time code, then confirm a 6-digit number shown on both.\n• Pick tabs and send them. Optionally include their cookies and site storage so you stay signed in.\n• The other browser shows exactly what arrived and which sites it would sign you in to. Nothing is applied until you accept.\n\n<b>Private by design</b>\n• Peer-to-peer: after a short encrypted handshake over public Nostr relays, the browsers talk directly over WebRTC (Google STUN only, no TURN). No server sits in the data path, and no account is needed.\n• End-to-end encrypted, with authentication by pinned device keys and forward secrecy.\n• Collects nothing: no analytics, no tracking, no developer servers.\n• The cookie and all-sites permissions are optional and requested only when you first send or accept sign-in data.\n\nDocs: https://dmdhrumilmistry.github.io/narada/docs.html · Source code: https://github.com/dmdhrumilmistry/narada"
   },
-  "categories": ["tabs", "privacy-security"],
-  "homepage": { "en-US": "https://dmdhrumilmistry.github.io/narada/" },
-  "support_url": { "en-US": "https://github.com/dmdhrumilmistry/narada/issues" },
+  "categories": [
+    "tabs",
+    "privacy-security"
+  ],
+  "homepage": {
+    "en-US": "https://dmdhrumilmistry.github.io/narada/"
+  },
+  "support_url": {
+    "en-US": "https://github.com/dmdhrumilmistry/narada/issues"
+  },
   "version": {
-    "license": "MIT"
+    "license": "MIT",
+    "compatibility": [
+      "firefox",
+      "android"
+    ]
   }
 }

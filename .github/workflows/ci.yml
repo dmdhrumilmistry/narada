@@ -78,6 +78,11 @@ jobs:
           FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox
           GECKODRIVER: ${{ runner.temp }}/ff/geckodriver
         run: npm run e2e:firefox || (echo "retrying once" && npm run e2e:firefox)
+      - name: Chromium <-> Firefox for Android API surface (simulated)
+        env:
+          FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox
+          GECKODRIVER: ${{ runner.temp }}/ff/geckodriver
+        run: npm run e2e:android-sim || (echo "retrying once" && npm run e2e:android-sim)
       - name: Enterprise policy (Chromium + Firefox)
         env:
           FIREFOX_BIN: ${{ runner.temp }}/ff/firefox/firefox

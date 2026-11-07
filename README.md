@@ -43,6 +43,7 @@ tabs (and, if you choose, your logins) between your browsers. It does this
 |---|---|---|
 | Chrome, Edge, Brave, Opera, Vivaldi, Arc, other Chromium ≥ 110 | `dist/chromium` | Uses an offscreen document. Forks without that API automatically get a minimized helper window instead. |
 | Firefox, ESR, LibreWolf, Waterfox, Floorp, Zen, other Gecko ≥ 115 | `dist/firefox` | Persistent background page (MV2), so connections aren't suspended. |
+| Firefox for Android 120+ | `dist/firefox` | Same add-on (installs from addons.mozilla.org). The popup becomes a full-screen, touch-friendly page. There are no right-click menu, shortcuts, badge or enterprise policy, because Android doesn't offer those APIs. Sync works while Firefox is open. |
 | Safari | ✗ | Safari extensions can't run WebRTC in the background. |
 
 Tested end to end: Chromium ↔ Chromium, Chromium ↔ Firefox ESR, and the

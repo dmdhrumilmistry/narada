@@ -15,7 +15,8 @@
     "e2e:chromium": "node test/e2e/chromium-to-chromium.cjs",
     "e2e:firefox": "node test/e2e/chromium-to-firefox.cjs",
     "site": "node scripts/build-site.mjs",
-    "e2e:policy": "node test/e2e/managed-policy.cjs"
+    "e2e:policy": "node test/e2e/managed-policy.cjs",
+    "e2e:android-sim": "FIREFOX_XPI=test/e2e/.build/narada-firefox-android-sim.xpi node test/e2e/chromium-to-firefox.cjs"
   },
   "repository": {
     "type": "git",
